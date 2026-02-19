@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { io } from "socket.io-client";
 import {
   CloudUpload,
   CloudDownload,
-  Globe,
   Code2,
   Wifi,
   WifiOff,
@@ -26,7 +25,7 @@ const socket = io("http://localhost:5000", {
 // --- ADVANCED GLOBAL TRACKING GRID ---
 const InteractiveGrid = React.memo(() => {
   const [gridSize, setGridSize] = useState({ cols: 0, rows: 0 });
-  const blockSize = 50; // The fixed size of each grid square
+  const blockSize = 100;
 
   useEffect(() => {
     const calculateGrid = () => {
@@ -43,28 +42,22 @@ const InteractiveGrid = React.memo(() => {
     };
     window.addEventListener("resize", handleResize);
 
-    // GLOBAL MOUSE TRACKER
-    // This calculates exactly what block is under your mouse based on X/Y coordinates
-    // This means it works perfectly even when hovering over panels!
     const handleMouseMove = (e) => {
       const col = Math.floor(e.clientX / blockSize);
       const row = Math.floor(e.clientY / blockSize);
 
       const target = document.getElementById(`grid-block-${col}-${row}`);
 
-      // If the block exists and isn't already glowing
       if (target && !target.classList.contains("active-glow")) {
         target.classList.add("active-glow");
 
         const brandPurple = "139, 92, 246";
 
-        // 1. Instant Activation
         target.style.transitionDuration = "0s";
         target.style.backgroundColor = `rgba(${brandPurple}, 0.3)`;
         target.style.boxShadow = `0 0 15px rgba(${brandPurple}, 0.9), 0 0 35px rgba(${brandPurple}, 0.5)`;
         target.style.opacity = "1";
 
-        // 2. Smooth 2.5-second fade out
         setTimeout(() => {
           if (target) {
             target.classList.remove("active-glow");
@@ -94,14 +87,13 @@ const InteractiveGrid = React.memo(() => {
       }}
     >
       {Array.from({ length: gridSize.cols * gridSize.rows }).map((_, i) => {
-        // Calculate the exact column and row for this specific block
         const col = i % gridSize.cols;
         const row = Math.floor(i / gridSize.cols);
 
         return (
           <div
             key={i}
-            id={`grid-block-${col}-${row}`} // Assign unique ID based on coordinate
+            id={`grid-block-${col}-${row}`}
             className="border-[0.5px] border-primary/[0.05] opacity-50 transition-all ease-out will-change-[background-color,box-shadow,opacity]"
           />
         );
@@ -113,6 +105,8 @@ const InteractiveGrid = React.memo(() => {
 export default function App() {
   const [tab, setTab] = useState("file");
   const [isConnected, setIsConnected] = useState(socket.connected);
+
+  const [isScrolled, setIsScrolled] = useState(false);
 
   // File Share State
   const [files, setFiles] = useState([]);
@@ -129,6 +123,11 @@ export default function App() {
   const [isJoined, setIsJoined] = useState(false);
 
   useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+    window.addEventListener("scroll", handleScroll);
+
     const handlePaste = (e) => {
       if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")
         return;
@@ -167,6 +166,7 @@ export default function App() {
     socket.on("code_update", (newCode) => setCode(newCode));
 
     return () => {
+      window.removeEventListener("scroll", handleScroll);
       window.removeEventListener("paste", handlePaste);
       socket.off("connect");
       socket.off("disconnect");
@@ -226,12 +226,27 @@ export default function App() {
       {/* BACKGROUND GRID */}
       <InteractiveGrid />
 
-      <nav className="relative z-20 w-full bg-bgMain/60 backdrop-blur-xl border-b border-borderCol p-5 flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <div className="bg-primary p-2.5 rounded-xl shadow-[0_0_15px_rgba(139,92,246,0.5)]">
-            <Globe size={22} className="text-white" />
-          </div>
-          <span className="text-2xl font-extrabold tracking-tight">
+      {/* === INSTANT FLOATING NAVBAR (NO ANIMATIONS) === */}
+      <nav
+        className={`fixed z-50 flex justify-between items-center backdrop-blur-xl ${
+          isScrolled
+            ? "top-4 left-1/2 -translate-x-1/2 w-[95%] max-w-6xl rounded-3xl bg-bgMain/85 py-3 px-6 shadow-[0_10px_40px_rgba(0,0,0,0.5)] border border-primary/20"
+            : "top-0 left-0 w-full rounded-none bg-bgMain/60 py-5 px-5 md:px-8 border-b border-borderCol"
+        }`}
+      >
+        <div className="flex items-center gap-4">
+          <img
+            src="/logo.png"
+            alt="FileShare Logo"
+            className={`object-contain drop-shadow-[0_0_12px_rgba(139,92,246,0.6)] ${isScrolled ? "w-10 h-10" : "w-14 h-14"}`}
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.style.display = "none";
+            }}
+          />
+          <span
+            className={`font-extrabold tracking-tight ${isScrolled ? "text-2xl" : "text-3xl"}`}
+          >
             FileShare
           </span>
         </div>
@@ -255,11 +270,13 @@ export default function App() {
           className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold border backdrop-blur-sm transition-colors ${isConnected ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-red-500/10 border-red-500/20 text-red-400"}`}
         >
           {isConnected ? <Wifi size={14} /> : <WifiOff size={14} />}
-          {isConnected ? "ONLINE" : "OFFLINE"}
+          <span className="hidden sm:inline">
+            {isConnected ? "ONLINE" : "OFFLINE"}
+          </span>
         </div>
       </nav>
 
-      <main className="relative z-10 pt-16 pb-12 px-6 max-w-6xl mx-auto w-full flex-1 flex flex-col">
+      <main className="relative z-10 pt-40 pb-12 px-6 max-w-6xl mx-auto w-full flex-1 flex flex-col">
         <div className="text-center mb-16 animate-fade-in-up">
           <h1 className="text-5xl md:text-7xl font-black mb-6 tracking-tight">
             Share without{" "}

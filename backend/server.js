@@ -4,15 +4,25 @@ const { Server } = require("socket.io");
 const cors = require("cors");
 
 const app = express();
-app.use(cors({ origin: "http://localhost:5173" }));
+
+// UPDATED: Allow Express to accept requests from any origin (like Vercel)
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  }),
+);
 
 const server = http.createServer(app);
 
-// UPDATED: Added maxHttpBufferSize to allow large file transfers
+// UPDATED: Dynamic port binding for Render
+const PORT = process.env.PORT || 5000;
+
 const io = new Server(server, {
   maxHttpBufferSize: 1e8, // 100 MB limit
   cors: {
-    origin: "http://localhost:5173",
+    // UPDATED: 'true' automatically reflects the request origin so Vercel isn't blocked
+    origin: true,
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -60,6 +70,7 @@ io.on("connection", (socket) => {
   });
 });
 
-server.listen(5000, () => {
-  console.log("🚀 SERVER RUNNING ON PORT 5000");
+// UPDATED: Use the dynamic PORT variable here
+server.listen(PORT, () => {
+  console.log(`🚀 SERVER RUNNING ON PORT ${PORT}`);
 });
