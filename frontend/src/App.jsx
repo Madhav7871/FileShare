@@ -17,7 +17,8 @@ import {
   Infinity,
 } from "lucide-react";
 
-const socket = io("http://localhost:5000", {
+// === CONNECTING TO YOUR LIVE RENDER SERVER ===
+const socket = io("https://fileshare-r6cf.onrender.com", {
   transports: ["websocket"],
   withCredentials: true,
 });
@@ -226,7 +227,7 @@ export default function App() {
       {/* BACKGROUND GRID */}
       <InteractiveGrid />
 
-      {/* === INSTANT FLOATING NAVBAR (NO ANIMATIONS) === */}
+      {/* === INSTANT FLOATING NAVBAR === */}
       <nav
         className={`fixed z-50 flex justify-between items-center backdrop-blur-xl ${
           isScrolled
