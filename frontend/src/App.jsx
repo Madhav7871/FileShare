@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { io } from "socket.io-client";
 import {
   CloudUpload,
@@ -23,13 +23,13 @@ const socket = io("http://localhost:5000", {
   withCredentials: true,
 });
 
-// --- ULTRA-SMOOTH PATTERNED GRID COMPONENT ---
+// --- ADVANCED GLOBAL TRACKING GRID ---
 const InteractiveGrid = React.memo(() => {
   const [gridSize, setGridSize] = useState({ cols: 0, rows: 0 });
+  const blockSize = 50; // The fixed size of each grid square
 
   useEffect(() => {
     const calculateGrid = () => {
-      const blockSize = 50;
       const cols = Math.ceil(window.innerWidth / blockSize);
       const rows = Math.ceil(window.innerHeight / blockSize);
       setGridSize({ cols, rows });
@@ -42,54 +42,70 @@ const InteractiveGrid = React.memo(() => {
       timeoutId = setTimeout(calculateGrid, 200);
     };
     window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
 
-  const handleMouseOver = useCallback(
-    (e) => {
-      const target = e.target;
-      if (target.classList.contains("grid-block")) {
-        const index = parseInt(target.dataset.index);
-        const col = index % gridSize.cols;
-        const row = Math.floor(index / gridSize.cols);
+    // GLOBAL MOUSE TRACKER
+    // This calculates exactly what block is under your mouse based on X/Y coordinates
+    // This means it works perfectly even when hovering over panels!
+    const handleMouseMove = (e) => {
+      const col = Math.floor(e.clientX / blockSize);
+      const row = Math.floor(e.clientY / blockSize);
 
-        const hue = (col * 4 + row * 4) % 360;
-        const neonColor = `hsl(${hue}, 90%, 60%)`;
+      const target = document.getElementById(`grid-block-${col}-${row}`);
 
+      // If the block exists and isn't already glowing
+      if (target && !target.classList.contains("active-glow")) {
+        target.classList.add("active-glow");
+
+        const brandPurple = "139, 92, 246";
+
+        // 1. Instant Activation
         target.style.transitionDuration = "0s";
-        target.style.backgroundColor = neonColor;
-        target.style.boxShadow = `0 0 15px ${neonColor}, 0 0 30px ${neonColor}`;
-        target.style.opacity = "0.6";
+        target.style.backgroundColor = `rgba(${brandPurple}, 0.3)`;
+        target.style.boxShadow = `0 0 15px rgba(${brandPurple}, 0.9), 0 0 35px rgba(${brandPurple}, 0.5)`;
+        target.style.opacity = "1";
 
+        // 2. Smooth 2.5-second fade out
         setTimeout(() => {
           if (target) {
-            target.style.transitionDuration = "2000ms";
+            target.classList.remove("active-glow");
+            target.style.transitionDuration = "2500ms";
             target.style.backgroundColor = "transparent";
             target.style.boxShadow = "none";
-            target.style.opacity = "1";
+            target.style.opacity = "0.5";
           }
         }, 50);
       }
-    },
-    [gridSize.cols],
-  );
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("mousemove", handleMouseMove);
+    };
+  }, []);
 
   return (
     <div
-      className="fixed inset-0 z-0 grid w-full h-full bg-bgMain overflow-hidden opacity-70 pointer-events-auto"
+      className="fixed inset-0 z-0 grid w-full h-full bg-bgMain overflow-hidden pointer-events-none"
       style={{
         gridTemplateColumns: `repeat(${gridSize.cols}, 1fr)`,
         gridTemplateRows: `repeat(${gridSize.rows}, 1fr)`,
       }}
-      onMouseOver={handleMouseOver}
     >
-      {Array.from({ length: gridSize.cols * gridSize.rows }).map((_, i) => (
-        <div
-          key={i}
-          data-index={i}
-          className="grid-block border-[0.5px] border-white/[0.03] transition-all ease-out will-change-[background-color,box-shadow,opacity]"
-        />
-      ))}
+      {Array.from({ length: gridSize.cols * gridSize.rows }).map((_, i) => {
+        // Calculate the exact column and row for this specific block
+        const col = i % gridSize.cols;
+        const row = Math.floor(i / gridSize.cols);
+
+        return (
+          <div
+            key={i}
+            id={`grid-block-${col}-${row}`} // Assign unique ID based on coordinate
+            className="border-[0.5px] border-primary/[0.05] opacity-50 transition-all ease-out will-change-[background-color,box-shadow,opacity]"
+          />
+        );
+      })}
     </div>
   );
 });
@@ -207,6 +223,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-bgMain text-white font-sans selection:bg-primary/30 relative flex flex-col overflow-x-hidden">
+      {/* BACKGROUND GRID */}
       <InteractiveGrid />
 
       <nav className="relative z-20 w-full bg-bgMain/60 backdrop-blur-xl border-b border-borderCol p-5 flex justify-between items-center">
@@ -242,21 +259,21 @@ export default function App() {
         </div>
       </nav>
 
-      <main className="relative z-10 pt-16 pb-12 px-6 max-w-6xl mx-auto w-full flex-1 pointer-events-none flex flex-col">
+      <main className="relative z-10 pt-16 pb-12 px-6 max-w-6xl mx-auto w-full flex-1 flex flex-col">
         <div className="text-center mb-16 animate-fade-in-up">
-          <h1 className="text-5xl md:text-7xl font-black mb-6 tracking-tight pointer-events-auto">
+          <h1 className="text-5xl md:text-7xl font-black mb-6 tracking-tight">
             Share without{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">
               Limits.
             </span>
           </h1>
-          <p className="text-textMuted max-w-lg mx-auto text-lg pointer-events-auto">
+          <p className="text-textMuted max-w-lg mx-auto text-lg">
             Secure, anonymous, peer-to-peer data infrastructure.
           </p>
         </div>
 
         {tab === "file" && (
-          <div className="grid md:grid-cols-2 gap-8 pointer-events-auto">
+          <div className="grid md:grid-cols-2 gap-8">
             {/* SENDER PANEL */}
             <div className="bg-surface/70 backdrop-blur-md p-8 rounded-[32px] border border-borderCol shadow-2xl hover:border-primary/50 transition-all duration-500 group animate-fade-in-up hover:shadow-[0_0_30px_rgba(139,92,246,0.15)]">
               <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center mb-6 shadow-[0_0_20px_rgba(139,92,246,0.1)] group-hover:scale-110 transition-transform duration-300">
@@ -434,7 +451,7 @@ export default function App() {
 
         {/* CODE ROOM TAB */}
         {tab === "code" && (
-          <div className="animate-fade-in-up pointer-events-auto">
+          <div className="animate-fade-in-up">
             {!isJoined ? (
               <div className="max-w-md mx-auto bg-surface/70 backdrop-blur-md p-10 rounded-[40px] border border-borderCol text-center shadow-2xl hover:border-amber-500/50 hover:shadow-[0_0_30px_rgba(245,158,11,0.15)] transition-all">
                 <div className="w-16 h-16 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-500 mx-auto mb-6 shadow-[0_0_20px_rgba(245,158,11,0.1)]">
@@ -521,12 +538,11 @@ export default function App() {
           </div>
         )}
 
-        {/* --- NEW FEATURES SECTION --- */}
+        {/* FEATURES SECTION */}
         <div
-          className="mt-auto pt-32 pb-8 grid grid-cols-1 md:grid-cols-3 gap-6 pointer-events-auto animate-fade-in-up"
+          className="mt-auto pt-32 pb-8 grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in-up"
           style={{ animationDelay: "0.2s" }}
         >
-          {/* Feature 1 */}
           <div className="bg-surface/60 backdrop-blur-md p-8 rounded-[32px] border border-borderCol transition-all duration-500 hover:-translate-y-2 hover:border-primary/50 hover:shadow-[0_0_30px_rgba(139,92,246,0.15)] group">
             <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
               <Zap className="text-primary" size={24} />
@@ -539,8 +555,6 @@ export default function App() {
               unthrottled data movement across devices.
             </p>
           </div>
-
-          {/* Feature 2 */}
           <div className="bg-surface/60 backdrop-blur-md p-8 rounded-[32px] border border-borderCol transition-all duration-500 hover:-translate-y-2 hover:border-secondary/50 hover:shadow-[0_0_30px_rgba(236,72,153,0.15)] group">
             <div className="w-14 h-14 bg-secondary/10 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
               <ShieldCheck className="text-secondary" size={24} />
@@ -553,8 +567,6 @@ export default function App() {
               wiped from memory the moment a transfer completes.
             </p>
           </div>
-
-          {/* Feature 3 */}
           <div className="bg-surface/60 backdrop-blur-md p-8 rounded-[32px] border border-borderCol transition-all duration-500 hover:-translate-y-2 hover:border-emerald-500/50 hover:shadow-[0_0_30px_rgba(16,185,129,0.15)] group">
             <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
               <Infinity className="text-emerald-500" size={24} />
@@ -575,7 +587,6 @@ export default function App() {
           <p className="text-textMuted text-sm">
             © 2026 FileShare. Secure File Infrastructure.
           </p>
-
           <div className="flex items-center gap-6">
             <a
               href="https://github.com/Madhav7871"
