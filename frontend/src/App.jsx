@@ -15,6 +15,10 @@ import {
   Zap,
   ShieldCheck,
   Infinity,
+  Image as ImageIcon,
+  FileText,
+  Film,
+  X,
 } from "lucide-react";
 
 // === CONNECTING TO YOUR LIVE RENDER SERVER ===
@@ -106,7 +110,6 @@ const InteractiveGrid = React.memo(() => {
 export default function App() {
   const [tab, setTab] = useState("file");
   const [isConnected, setIsConnected] = useState(socket.connected);
-
   const [isScrolled, setIsScrolled] = useState(false);
 
   // File Share State
@@ -123,32 +126,23 @@ export default function App() {
   const [code, setCode] = useState("// Start coding...");
   const [isJoined, setIsJoined] = useState(false);
 
+  // === NEW: PREVIEW STATE ===
+  const [previewData, setPreviewData] = useState(null);
+
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
-    };
+    const handleScroll = () => setIsScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);
 
     const handlePaste = (e) => {
       if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")
         return;
-      const pastedFiles = [];
-      if (e.clipboardData && e.clipboardData.items) {
-        for (let i = 0; i < e.clipboardData.items.length; i++) {
-          const item = e.clipboardData.items[i];
-          if (item.kind === "file") {
-            const file = item.getAsFile();
-            const ext = file.type.split("/")[1] || "bin";
-            const newFile = new File(
-              [file],
-              `Pasted-Asset-${Date.now()}.${ext}`,
-              { type: file.type },
-            );
-            pastedFiles.push(newFile);
-          }
-        }
-      }
-      if (pastedFiles.length > 0) {
+      if (
+        e.clipboardData &&
+        e.clipboardData.files &&
+        e.clipboardData.files.length > 0
+      ) {
+        e.preventDefault();
+        const pastedFiles = Array.from(e.clipboardData.files);
         setFiles((prev) => [...prev, ...pastedFiles]);
         setTab("file");
       }
@@ -222,12 +216,113 @@ export default function App() {
     }
   };
 
+  // === NEW: PREVIEW HANDLER LOGIC ===
+  const handlePreview = (fileObj, isReceived = false) => {
+    if (isReceived) {
+      // For received files (Base64 string)
+      const mimeType = fileObj.fileData.substring(
+        5,
+        fileObj.fileData.indexOf(";"),
+      );
+      setPreviewData({
+        url: fileObj.fileData,
+        name: fileObj.fileName,
+        type: mimeType,
+      });
+    } else {
+      // For local sender files (Native File Object)
+      const url = URL.createObjectURL(fileObj);
+      setPreviewData({ url, name: fileObj.name, type: fileObj.type });
+    }
+  };
+
+  const closePreview = () => {
+    // Revoke object URL to prevent memory leaks if it was a local file
+    if (previewData && previewData.url.startsWith("blob:")) {
+      URL.revokeObjectURL(previewData.url);
+    }
+    setPreviewData(null);
+  };
+
+  // Helper function to get the right icon based on file type
+  const getFileIcon = (type, className) => {
+    if (type.startsWith("image/"))
+      return <ImageIcon size={16} className={className} />;
+    if (type.startsWith("video/"))
+      return <Film size={16} className={className} />;
+    if (type === "application/pdf")
+      return <FileText size={16} className={className} />;
+    return <File size={16} className={className} />;
+  };
+
   return (
     <div className="min-h-screen bg-bgMain text-white font-sans selection:bg-primary/30 relative flex flex-col overflow-x-hidden">
-      {/* BACKGROUND GRID */}
       <InteractiveGrid />
 
-      {/* === INSTANT FLOATING NAVBAR === */}
+      {/* === PREVIEW MODAL === */}
+      {previewData && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in-up">
+          <div className="relative w-full max-w-4xl max-h-[90vh] bg-surface border border-borderCol rounded-3xl shadow-2xl flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex justify-between items-center p-4 border-b border-borderCol bg-bgMain/80">
+              <div className="flex items-center gap-3">
+                {getFileIcon(previewData.type, "text-primary")}
+                <h3 className="font-bold text-lg truncate max-w-sm md:max-w-xl">
+                  {previewData.name}
+                </h3>
+              </div>
+              <button
+                onClick={closePreview}
+                className="p-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 rounded-xl transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-auto flex items-center justify-center bg-black/30 p-4">
+              {previewData.type.startsWith("image/") ? (
+                <img
+                  src={previewData.url}
+                  alt="Preview"
+                  className="max-w-full max-h-[75vh] object-contain rounded-lg drop-shadow-2xl"
+                />
+              ) : previewData.type === "application/pdf" ? (
+                <iframe
+                  src={previewData.url}
+                  className="w-full h-[75vh] rounded-lg bg-white shadow-inner"
+                  title="PDF Preview"
+                />
+              ) : previewData.type.startsWith("video/") ? (
+                <video
+                  src={previewData.url}
+                  controls
+                  autoPlay
+                  className="max-w-full max-h-[75vh] rounded-lg drop-shadow-2xl"
+                />
+              ) : (
+                <div className="text-center p-10">
+                  <File
+                    size={64}
+                    className="mx-auto text-textMuted mb-4 opacity-50"
+                  />
+                  <p className="text-white font-bold text-xl mb-2">
+                    No Preview Available
+                  </p>
+                  <p className="text-textMuted">
+                    We cannot display a live preview for this file type.
+                  </p>
+                  <span className="inline-block mt-4 px-3 py-1 bg-surface rounded-full text-xs font-mono text-primary border border-borderCol">
+                    {previewData.type || "Unknown Format"}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NAVBAR */}
       <nav
         className={`fixed z-50 flex justify-between items-center backdrop-blur-xl ${
           isScrolled
@@ -337,16 +432,20 @@ export default function App() {
                   {files.map((f, i) => (
                     <div
                       key={i}
-                      className="flex items-center gap-3 p-3 bg-inputBg/80 rounded-xl border border-borderCol/50"
+                      onClick={() => handlePreview(f, false)} // OPEN PREVIEW ON CLICK
+                      className="flex items-center gap-3 p-3 bg-inputBg/80 rounded-xl border border-borderCol/50 cursor-pointer hover:bg-surface hover:border-primary/50 transition-all group"
+                      title="Click to preview"
                     >
-                      <File size={16} className="text-primary" />
-                      <span className="text-sm truncate flex-1">{f.name}</span>
+                      {getFileIcon(f.type, "text-primary")}
+                      <span className="text-sm truncate flex-1 font-medium group-hover:text-primary transition-colors">
+                        {f.name}
+                      </span>
                       <button
                         onClick={(e) => {
-                          e.stopPropagation();
+                          e.stopPropagation(); // Prevents modal from opening when clicking 'X'
                           setFiles(files.filter((_, index) => index !== i));
                         }}
-                        className="text-xs text-red-400 hover:text-red-300 font-bold px-2 rounded hover:bg-red-400/10 transition-colors"
+                        className="text-xs text-red-400 hover:text-red-300 font-bold px-2.5 py-1 rounded bg-red-400/10 hover:bg-red-400/20 transition-colors"
                       >
                         X
                       </button>
@@ -442,25 +541,37 @@ export default function App() {
                   <p className="text-xs font-bold text-textMuted uppercase mb-2">
                     Ready for Download
                   </p>
-                  {receivedFiles.map((f, i) => (
-                    <a
-                      key={i}
-                      href={f.fileData}
-                      download={f.fileName}
-                      className="flex items-center justify-between p-4 bg-inputBg/80 rounded-xl text-sm border border-borderCol hover:border-secondary/50 hover:bg-secondary/5 transition-all group/file"
-                    >
-                      <div className="flex items-center gap-3 overflow-hidden">
-                        <File size={16} className="text-secondary shrink-0" />
-                        <span className="truncate font-medium">
-                          {f.fileName}
-                        </span>
+                  {receivedFiles.map((f, i) => {
+                    // Extract MIME type from Base64 string for accurate icons
+                    const mimeType = f.fileData.substring(
+                      5,
+                      f.fileData.indexOf(";"),
+                    );
+                    return (
+                      <div
+                        key={i}
+                        onClick={() => handlePreview(f, true)} // OPEN PREVIEW ON CLICK
+                        className="flex items-center justify-between p-3 bg-inputBg/80 rounded-xl text-sm border border-borderCol hover:border-secondary/50 hover:bg-secondary/5 transition-all cursor-pointer group/file"
+                        title="Click to preview"
+                      >
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          {getFileIcon(mimeType, "text-secondary shrink-0")}
+                          <span className="truncate font-medium group-hover/file:text-secondary transition-colors">
+                            {f.fileName}
+                          </span>
+                        </div>
+                        <a
+                          href={f.fileData}
+                          download={f.fileName}
+                          onClick={(e) => e.stopPropagation()} // Prevents modal from opening when clicking download icon
+                          className="p-2 bg-secondary/10 hover:bg-secondary text-secondary hover:text-white rounded-lg transition-colors shrink-0"
+                          title="Download File"
+                        >
+                          <CloudDownload size={18} />
+                        </a>
                       </div>
-                      <CloudDownload
-                        size={18}
-                        className="text-secondary opacity-0 group-hover/file:opacity-100 transition-opacity shrink-0"
-                      />
-                    </a>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -483,15 +594,13 @@ export default function App() {
                   type="text"
                   placeholder="ENTER ROOM ID"
                   className="w-full bg-inputBg/80 border border-borderCol rounded-xl p-4 text-center font-mono mb-4 outline-none focus:border-amber-500 tracking-widest uppercase"
-                  onChange={(e) => setCodeRoomId(e.target.value)}
+                  onChange={(e) => setCodeRoomId(e.target.value.toUpperCase())}
+                  value={codeRoomId}
                 />
                 <button
                   onClick={() => {
                     if (codeRoomId) {
-                      socket.emit(
-                        "join_code_session",
-                        codeRoomId.toUpperCase(),
-                      );
+                      socket.emit("join_code_session", codeRoomId);
                       setIsJoined(true);
                     }
                   }}
