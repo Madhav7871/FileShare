@@ -107,6 +107,48 @@ const InteractiveGrid = React.memo(() => {
   );
 });
 
+// === SMOOTH TYPEWRITER ===
+const Typewriter = ({ words }) => {
+  const [currentWordIndex, setCurrentWordIndex] = useState(0);
+  const [currentText, setCurrentText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    let timeout;
+    const currentWord = words[currentWordIndex];
+
+    if (!isDeleting && currentText === currentWord) {
+      timeout = setTimeout(() => {
+        setIsDeleting(true);
+      }, 2500);
+    } else if (isDeleting && currentText === "") {
+      timeout = setTimeout(() => {
+        setIsDeleting(false);
+        setCurrentWordIndex((prev) => (prev + 1) % words.length);
+      }, 600);
+    } else {
+      const typingSpeed = isDeleting ? 100 : 250;
+
+      timeout = setTimeout(() => {
+        setCurrentText(
+          currentWord.substring(0, currentText.length + (isDeleting ? -1 : 1)),
+        );
+      }, typingSpeed);
+    }
+
+    return () => clearTimeout(timeout);
+  }, [currentText, isDeleting, currentWordIndex, words]);
+
+  return (
+    <span className="flex items-center justify-center min-h-[1.2em]">
+      <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">
+        {currentText === "" ? "\u00A0" : currentText}
+      </span>
+      <span className="inline-block w-[4px] md:w-[6px] h-[0.9em] bg-primary ml-1 md:ml-2 animate-pulse rounded-full"></span>
+    </span>
+  );
+};
+
 export default function App() {
   const [tab, setTab] = useState("file");
   const [isConnected, setIsConnected] = useState(socket.connected);
@@ -126,7 +168,7 @@ export default function App() {
   const [code, setCode] = useState("// Start coding...");
   const [isJoined, setIsJoined] = useState(false);
 
-  // === NEW: PREVIEW STATE ===
+  // Preview State
   const [previewData, setPreviewData] = useState(null);
 
   useEffect(() => {
@@ -216,10 +258,9 @@ export default function App() {
     }
   };
 
-  // === NEW: PREVIEW HANDLER LOGIC ===
+  // Preview Logic
   const handlePreview = (fileObj, isReceived = false) => {
     if (isReceived) {
-      // For received files (Base64 string)
       const mimeType = fileObj.fileData.substring(
         5,
         fileObj.fileData.indexOf(";"),
@@ -228,29 +269,36 @@ export default function App() {
         url: fileObj.fileData,
         name: fileObj.fileName,
         type: mimeType,
+        isReceived: true,
       });
     } else {
-      // For local sender files (Native File Object)
       const url = URL.createObjectURL(fileObj);
-      setPreviewData({ url, name: fileObj.name, type: fileObj.type });
+      setPreviewData({
+        url,
+        name: fileObj.name,
+        type: fileObj.type,
+        isReceived: false,
+      });
     }
   };
 
   const closePreview = () => {
-    // Revoke object URL to prevent memory leaks if it was a local file
     if (previewData && previewData.url.startsWith("blob:")) {
       URL.revokeObjectURL(previewData.url);
     }
     setPreviewData(null);
   };
 
-  // Helper function to get the right icon based on file type
   const getFileIcon = (type, className) => {
     if (type.startsWith("image/"))
       return <ImageIcon size={16} className={className} />;
     if (type.startsWith("video/"))
       return <Film size={16} className={className} />;
-    if (type === "application/pdf")
+    if (
+      type === "application/pdf" ||
+      type.includes("document") ||
+      type.startsWith("text/")
+    )
       return <FileText size={16} className={className} />;
     return <File size={16} className={className} />;
   };
@@ -259,11 +307,10 @@ export default function App() {
     <div className="min-h-screen bg-bgMain text-white font-sans selection:bg-primary/30 relative flex flex-col overflow-x-hidden">
       <InteractiveGrid />
 
-      {/* === PREVIEW MODAL === */}
+      {/* PREVIEW MODAL */}
       {previewData && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in-up">
           <div className="relative w-full max-w-4xl max-h-[90vh] bg-surface border border-borderCol rounded-3xl shadow-2xl flex flex-col overflow-hidden">
-            {/* Modal Header */}
             <div className="flex justify-between items-center p-4 border-b border-borderCol bg-bgMain/80">
               <div className="flex items-center gap-3">
                 {getFileIcon(previewData.type, "text-primary")}
@@ -279,7 +326,6 @@ export default function App() {
               </button>
             </div>
 
-            {/* Modal Body */}
             <div className="flex-1 overflow-auto flex items-center justify-center bg-black/30 p-4">
               {previewData.type.startsWith("image/") ? (
                 <img
@@ -287,11 +333,12 @@ export default function App() {
                   alt="Preview"
                   className="max-w-full max-h-[75vh] object-contain rounded-lg drop-shadow-2xl"
                 />
-              ) : previewData.type === "application/pdf" ? (
+              ) : previewData.type === "application/pdf" ||
+                previewData.type.startsWith("text/") ? (
                 <iframe
                   src={previewData.url}
                   className="w-full h-[75vh] rounded-lg bg-white shadow-inner"
-                  title="PDF Preview"
+                  title="Document Preview"
                 />
               ) : previewData.type.startsWith("video/") ? (
                 <video
@@ -301,20 +348,27 @@ export default function App() {
                   className="max-w-full max-h-[75vh] rounded-lg drop-shadow-2xl"
                 />
               ) : (
-                <div className="text-center p-10">
+                <div className="text-center p-12 bg-bgMain/50 rounded-2xl border border-borderCol max-w-lg w-full">
                   <File
-                    size={64}
-                    className="mx-auto text-textMuted mb-4 opacity-50"
+                    size={80}
+                    className="mx-auto text-primary mb-6 drop-shadow-[0_0_15px_rgba(139,92,246,0.5)]"
                   />
-                  <p className="text-white font-bold text-xl mb-2">
-                    No Preview Available
+                  <p className="text-white font-bold text-2xl mb-2">
+                    Ready to Transfer
                   </p>
-                  <p className="text-textMuted">
-                    We cannot display a live preview for this file type.
+                  <p className="text-textMuted mb-8 text-sm">
+                    Browsers cannot natively preview Microsoft Office or Archive
+                    files, but your file is intact and ready.
                   </p>
-                  <span className="inline-block mt-4 px-3 py-1 bg-surface rounded-full text-xs font-mono text-primary border border-borderCol">
-                    {previewData.type || "Unknown Format"}
-                  </span>
+
+                  <a
+                    href={previewData.url}
+                    download={previewData.name}
+                    className="inline-flex items-center justify-center gap-2 bg-primary py-3 px-8 rounded-xl font-bold shadow-[0_0_20px_rgba(139,92,246,0.3)] hover:shadow-[0_0_30px_rgba(139,92,246,0.5)] hover:-translate-y-1 transition-all"
+                  >
+                    <CloudDownload size={20} />
+                    Download File
+                  </a>
                 </div>
               )}
             </div>
@@ -322,26 +376,28 @@ export default function App() {
         </div>
       )}
 
-      {/* NAVBAR */}
+      {/* === ULTRA-SMOOTH ANIMATED NAVBAR === */}
       <nav
-        className={`fixed z-50 flex justify-between items-center backdrop-blur-xl ${
+        className={`fixed z-50 left-0 right-0 mx-auto flex justify-between items-center backdrop-blur-xl transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] ${
           isScrolled
-            ? "top-4 left-1/2 -translate-x-1/2 w-[95%] max-w-6xl rounded-3xl bg-bgMain/85 py-3 px-6 shadow-[0_10px_40px_rgba(0,0,0,0.5)] border border-primary/20"
-            : "top-0 left-0 w-full rounded-none bg-bgMain/60 py-5 px-5 md:px-8 border-b border-borderCol"
+            ? "top-4 w-[95%] max-w-6xl rounded-3xl bg-bgMain/85 py-3 px-6 shadow-[0_20px_40px_rgba(0,0,0,0.6)] border border-primary/20"
+            : "top-0 w-full max-w-full rounded-none bg-bgMain/60 py-5 px-5 md:px-8 border-b border-borderCol"
         }`}
       >
         <div className="flex items-center gap-4">
           <img
             src="/logo.png"
             alt="FileShare Logo"
-            className={`object-contain drop-shadow-[0_0_12px_rgba(139,92,246,0.6)] ${isScrolled ? "w-10 h-10" : "w-14 h-14"}`}
+            /* Smoothly animate logo scaling */
+            className={`object-contain drop-shadow-[0_0_12px_rgba(139,92,246,0.6)] transition-all duration-700 ease-in-out ${isScrolled ? "w-10 h-10" : "w-14 h-14"}`}
             onError={(e) => {
               e.target.onerror = null;
               e.target.style.display = "none";
             }}
           />
           <span
-            className={`font-extrabold tracking-tight ${isScrolled ? "text-2xl" : "text-3xl"}`}
+            /* Smoothly animate text scaling */
+            className={`font-extrabold tracking-tight transition-all duration-700 ease-in-out ${isScrolled ? "text-2xl" : "text-3xl"}`}
           >
             FileShare
           </span>
@@ -373,15 +429,15 @@ export default function App() {
       </nav>
 
       <main className="relative z-10 pt-40 pb-12 px-6 max-w-6xl mx-auto w-full flex-1 flex flex-col">
+        {/* HERO SECTION */}
         <div className="text-center mb-16 animate-fade-in-up">
-          <h1 className="text-5xl md:text-7xl font-black mb-6 tracking-tight">
-            Share without{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">
-              Limits.
-            </span>
+          <h1 className="text-5xl md:text-7xl font-black mb-4 tracking-tight flex flex-col items-center justify-center gap-2">
+            <span>Share without</span>
+            <Typewriter words={["Logins", "Servers", "Trace", "Limits"]} />
           </h1>
-          <p className="text-textMuted max-w-lg mx-auto text-lg">
-            Secure, anonymous, peer-to-peer data infrastructure.
+          <p className="text-textMuted max-w-lg mx-auto text-lg mt-6">
+            Secure, anonymous, peer-to-peer file transfer. No sign-ups, no
+            limits.
           </p>
         </div>
 
@@ -432,7 +488,7 @@ export default function App() {
                   {files.map((f, i) => (
                     <div
                       key={i}
-                      onClick={() => handlePreview(f, false)} // OPEN PREVIEW ON CLICK
+                      onClick={() => handlePreview(f, false)}
                       className="flex items-center gap-3 p-3 bg-inputBg/80 rounded-xl border border-borderCol/50 cursor-pointer hover:bg-surface hover:border-primary/50 transition-all group"
                       title="Click to preview"
                     >
@@ -442,7 +498,7 @@ export default function App() {
                       </span>
                       <button
                         onClick={(e) => {
-                          e.stopPropagation(); // Prevents modal from opening when clicking 'X'
+                          e.stopPropagation();
                           setFiles(files.filter((_, index) => index !== i));
                         }}
                         className="text-xs text-red-400 hover:text-red-300 font-bold px-2.5 py-1 rounded bg-red-400/10 hover:bg-red-400/20 transition-colors"
@@ -542,7 +598,6 @@ export default function App() {
                     Ready for Download
                   </p>
                   {receivedFiles.map((f, i) => {
-                    // Extract MIME type from Base64 string for accurate icons
                     const mimeType = f.fileData.substring(
                       5,
                       f.fileData.indexOf(";"),
@@ -550,7 +605,7 @@ export default function App() {
                     return (
                       <div
                         key={i}
-                        onClick={() => handlePreview(f, true)} // OPEN PREVIEW ON CLICK
+                        onClick={() => handlePreview(f, true)}
                         className="flex items-center justify-between p-3 bg-inputBg/80 rounded-xl text-sm border border-borderCol hover:border-secondary/50 hover:bg-secondary/5 transition-all cursor-pointer group/file"
                         title="Click to preview"
                       >
@@ -563,7 +618,7 @@ export default function App() {
                         <a
                           href={f.fileData}
                           download={f.fileName}
-                          onClick={(e) => e.stopPropagation()} // Prevents modal from opening when clicking download icon
+                          onClick={(e) => e.stopPropagation()}
                           className="p-2 bg-secondary/10 hover:bg-secondary text-secondary hover:text-white rounded-lg transition-colors shrink-0"
                           title="Download File"
                         >
