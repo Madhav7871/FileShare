@@ -5,7 +5,7 @@ const cors = require("cors");
 
 const app = express();
 
-// UPDATED: Allow Express to accept requests from any origin (like Vercel)
+// Allow Express to accept requests from any origin
 app.use(
   cors({
     origin: true,
@@ -15,25 +15,28 @@ app.use(
 
 const server = http.createServer(app);
 
-// UPDATED: Dynamic port binding for Render
+// Dynamic port binding for Render
 const PORT = process.env.PORT || 5000;
 
 const io = new Server(server, {
   maxHttpBufferSize: 1e8, // 100 MB limit
   cors: {
-    // UPDATED: 'true' automatically reflects the request origin so Vercel isn't blocked
     origin: true,
     methods: ["GET", "POST"],
     credentials: true,
   },
 });
 
-const rooms = new Map();
-const codeRooms = new Map();
+const rooms = new Map(); // For File Sharing
+const codeRooms = new Map(); // For storing the actual code text
+const activeCodeRooms = new Set(); // To track which code rooms actually exist
 
 io.on("connection", (socket) => {
   console.log(`✅ User Connected: ${socket.id}`);
 
+  // ==========================================
+  // FILE SHARE LOGIC
+  // ==========================================
   socket.on("create_room", (data) => {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     rooms.set(code, data.files);
@@ -53,16 +56,50 @@ io.on("connection", (socket) => {
     }
   });
 
+  // ==========================================
+  // CODE ROOM LOGIC
+  // ==========================================
+  socket.on("create_code_session", (roomId) => {
+    // Check if it already exists to avoid duplicates
+    if (activeCodeRooms.has(roomId)) {
+      socket.emit(
+        "error",
+        "This room code already exists. Please generate a new one.",
+      );
+      return;
+    }
+
+    activeCodeRooms.add(roomId);
+    codeRooms.set(roomId, "// Start coding...\n");
+
+    socket.join(roomId);
+    socket.emit("code_session_created", roomId);
+    console.log(`👨‍💻 Code Room Created: ${roomId}`);
+  });
+
   socket.on("join_code_session", (roomCode) => {
+    // Check if the room actually exists before letting them in
+    if (!activeCodeRooms.has(roomCode)) {
+      socket.emit(
+        "error",
+        "Invalid Room ID! This room has not been created yet.",
+      );
+      return;
+    }
+
     socket.join(roomCode);
-    const existingCode = codeRooms.get(roomCode) || "// Start coding...";
+    socket.emit("code_session_joined");
+
+    const existingCode = codeRooms.get(roomCode) || "// Start coding...\n";
     socket.emit("code_update", existingCode);
-    console.log(`👨‍💻 User joined Code Room: ${roomCode}`);
+    console.log(`📥 User joined Code Room: ${roomCode}`);
   });
 
   socket.on("send_code_update", ({ roomCode, code }) => {
-    codeRooms.set(roomCode, code);
-    socket.to(roomCode).emit("code_update", code);
+    if (activeCodeRooms.has(roomCode)) {
+      codeRooms.set(roomCode, code);
+      socket.to(roomCode).emit("code_update", code);
+    }
   });
 
   socket.on("disconnect", () => {
@@ -70,7 +107,6 @@ io.on("connection", (socket) => {
   });
 });
 
-// UPDATED: Use the dynamic PORT variable here
 server.listen(PORT, () => {
   console.log(`🚀 SERVER RUNNING ON PORT ${PORT}`);
 });

@@ -33,7 +33,6 @@ const InteractiveGrid = React.memo(() => {
 
   useEffect(() => {
     const calculateGrid = () => {
-      // Use 60px blocks on mobile, 100px blocks on desktop
       const blockSize = window.innerWidth < 768 ? 60 : 100;
       const cols = Math.ceil(window.innerWidth / blockSize);
       const rows = Math.ceil(window.innerHeight / blockSize);
@@ -49,7 +48,6 @@ const InteractiveGrid = React.memo(() => {
     window.addEventListener("resize", handleResize);
 
     const handleMouseMove = (e) => {
-      // Use the current dynamic block size
       const blockSize = window.innerWidth < 768 ? 60 : 100;
       const col = Math.floor(e.clientX / blockSize);
       const row = Math.floor(e.clientY / blockSize);
@@ -194,16 +192,35 @@ export default function App() {
     };
     window.addEventListener("paste", handlePaste);
 
+    // Socket connections
     socket.on("connect", () => setIsConnected(true));
     socket.on("disconnect", () => setIsConnected(false));
     socket.on("connect_error", () => setIsConnected(false));
+
+    // File share events
     socket.on("room_created", (code) => {
       setRoomCode(code);
       setIsEncrypting(false);
     });
     socket.on("file_received", (data) => setReceivedFiles(data.files));
-    socket.on("error", (msg) => alert(msg));
+
+    // Global Error Catcher
+    socket.on("error", (msg) => {
+      alert(msg); // This pops up if they use a random code!
+      setIsEncrypting(false);
+    });
+
+    // Code Room Events
     socket.on("code_update", (newCode) => setCode(newCode));
+
+    socket.on("code_session_created", (roomId) => {
+      setCodeRoomId(roomId);
+      setIsJoined(true);
+    });
+
+    socket.on("code_session_joined", () => {
+      setIsJoined(true);
+    });
 
     return () => {
       window.removeEventListener("scroll", handleScroll);
@@ -215,6 +232,8 @@ export default function App() {
       socket.off("file_received");
       socket.off("error");
       socket.off("code_update");
+      socket.off("code_session_created");
+      socket.off("code_session_joined");
     };
   }, []);
 
@@ -670,10 +689,9 @@ export default function App() {
                   onClick={() => {
                     if (codeRoomId) {
                       socket.emit("join_code_session", codeRoomId);
-                      setIsJoined(true);
                     }
                   }}
-                  disabled={!isConnected}
+                  disabled={!isConnected || !codeRoomId}
                   className="w-full bg-primary py-3 rounded-xl text-sm md:text-base font-bold mb-3 hover:-translate-y-1 transition-all shadow-[0_0_15px_rgba(139,92,246,0.3)] disabled:opacity-50 disabled:transform-none"
                 >
                   Join Room
@@ -684,9 +702,7 @@ export default function App() {
                       .toString(36)
                       .substring(2, 8)
                       .toUpperCase();
-                    setCodeRoomId(newId);
-                    socket.emit("join_code_session", newId);
-                    setIsJoined(true);
+                    socket.emit("create_code_session", newId);
                   }}
                   disabled={!isConnected}
                   className="text-xs md:text-sm text-primary font-bold hover:underline disabled:opacity-50"
