@@ -5,7 +5,7 @@ const cors = require("cors");
 
 const app = express();
 
-// Allow Express to accept requests from any origin
+// Allow Express to accept requests from any origin (like Vercel)
 app.use(
   cors({
     origin: true,
@@ -59,8 +59,9 @@ io.on("connection", (socket) => {
   // ==========================================
   // CODE ROOM LOGIC
   // ==========================================
+
+  // 1. CREATE A NEW CODE ROOM
   socket.on("create_code_session", (roomId) => {
-    // Check if it already exists to avoid duplicates
     if (activeCodeRooms.has(roomId)) {
       socket.emit(
         "error",
@@ -77,8 +78,8 @@ io.on("connection", (socket) => {
     console.log(`👨‍💻 Code Room Created: ${roomId}`);
   });
 
+  // 2. JOIN AN EXISTING CODE ROOM
   socket.on("join_code_session", (roomCode) => {
-    // Check if the room actually exists before letting them in
     if (!activeCodeRooms.has(roomCode)) {
       socket.emit(
         "error",
@@ -95,6 +96,13 @@ io.on("connection", (socket) => {
     console.log(`📥 User joined Code Room: ${roomCode}`);
   });
 
+  // 3. LEAVE A CODE ROOM (Fixes the Ghost Typing Bug)
+  socket.on("leave_code_session", (roomCode) => {
+    socket.leave(roomCode);
+    console.log(`🚪 User left Code Room: ${roomCode}`);
+  });
+
+  // 4. REAL-TIME TYPING
   socket.on("send_code_update", ({ roomCode, code }) => {
     if (activeCodeRooms.has(roomCode)) {
       codeRooms.set(roomCode, code);

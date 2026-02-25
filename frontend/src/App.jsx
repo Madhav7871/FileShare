@@ -206,7 +206,7 @@ export default function App() {
 
     // Global Error Catcher
     socket.on("error", (msg) => {
-      alert(msg); // This pops up if they use a random code!
+      alert(msg);
       setIsEncrypting(false);
     });
 
@@ -723,8 +723,13 @@ export default function App() {
                   </div>
                   <button
                     onClick={() => {
+                      // 1. Tell server we are leaving so we don't get ghost updates
+                      socket.emit("leave_code_session", codeRoomId);
+
+                      // 2. Clear out our local state
                       setIsJoined(false);
                       setCodeRoomId("");
+                      setCode("// Start coding...");
                     }}
                     className="text-red-400 text-xs md:text-sm font-bold hover:text-red-300 bg-red-400/10 px-3 py-1 md:px-4 md:py-1.5 rounded-lg transition-colors border border-red-400/20"
                   >
