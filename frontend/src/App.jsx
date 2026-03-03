@@ -673,7 +673,7 @@ export default function App() {
                   <Code2 className="w-6 h-6 md:w-8 md:h-8" />
                 </div>
                 <h3 className="text-xl md:text-2xl font-bold mb-1 md:mb-2">
-                  Dev Room
+                  Code Room
                 </h3>
                 <p className="text-textMuted text-xs md:text-sm mb-6 md:mb-8">
                   Real-time collaborative code editor.
