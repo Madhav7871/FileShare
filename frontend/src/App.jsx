@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { io } from "socket.io-client";
 import {
   CloudUpload,
@@ -19,6 +19,7 @@ import {
   FileText,
   Film,
   X,
+  AlertCircle,
 } from "lucide-react";
 
 // === CONNECTING TO YOUR LIVE RENDER SERVER ===
@@ -155,6 +156,10 @@ export default function App() {
   const [isConnected, setIsConnected] = useState(socket.connected);
   const [isScrolled, setIsScrolled] = useState(false);
 
+  // Error State for modern toasts
+  const [errorToast, setErrorToast] = useState({ show: false, message: "" });
+  const toastTimeoutRef = useRef(null); // Fixes the ghosting toast bug
+
   // File Share State
   const [files, setFiles] = useState([]);
   const [roomCode, setRoomCode] = useState("");
@@ -206,8 +211,16 @@ export default function App() {
 
     // Global Error Catcher
     socket.on("error", (msg) => {
-      alert(msg);
+      setErrorToast({ show: true, message: msg });
       setIsEncrypting(false);
+
+      // Clear any existing timers so they don't hide the new toast instantly
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+
+      // Set new auto-hide timer
+      toastTimeoutRef.current = setTimeout(() => {
+        setErrorToast({ show: false, message: "" });
+      }, 3500);
     });
 
     // Code Room Events
@@ -325,9 +338,48 @@ export default function App() {
     return <File size={16} className={className} />;
   };
 
+  // =====================================
+  // JOIN HANDLERS FOR CLICK AND ENTER
+  // =====================================
+  const handleJoinFileRoom = () => {
+    if (isConnected && inputCode.length === 6) {
+      socket.emit("join_room", inputCode);
+    }
+  };
+
+  const handleJoinCodeRoom = () => {
+    if (isConnected && codeRoomId) {
+      socket.emit("join_code_session", codeRoomId);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-bgMain text-white font-sans selection:bg-primary/30 relative flex flex-col overflow-x-hidden">
       <InteractiveGrid />
+
+      {/* MODERN ERROR TOAST NOTIFICATION - MOVED TO BOTTOM RIGHT */}
+      {errorToast.show && (
+        <div className="fixed bottom-8 right-4 md:bottom-10 md:right-10 z-[200] animate-fade-in-up">
+          <div className="bg-surface/90 backdrop-blur-xl border border-red-500/50 shadow-[0_10px_40px_rgba(239,68,68,0.25)] px-5 py-3 md:px-6 md:py-4 rounded-2xl flex items-center gap-3">
+            <div className="bg-red-500/20 p-1.5 md:p-2 rounded-full shrink-0">
+              <AlertCircle className="text-red-400 w-5 h-5 md:w-6 md:h-6" />
+            </div>
+            <span className="text-white font-semibold text-xs md:text-sm">
+              {errorToast.message}
+            </span>
+            <button
+              onClick={() => {
+                setErrorToast({ show: false, message: "" });
+                if (toastTimeoutRef.current)
+                  clearTimeout(toastTimeoutRef.current);
+              }}
+              className="text-textMuted hover:text-white ml-2 transition-colors shrink-0"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* PREVIEW MODAL */}
       {previewData && (
@@ -608,12 +660,19 @@ export default function App() {
                 maxLength="6"
                 placeholder="000 000"
                 className="w-full bg-inputBg/80 border border-borderCol rounded-2xl p-4 md:p-6 text-center text-2xl md:text-3xl font-mono focus:border-secondary focus:ring-2 focus:ring-secondary/20 outline-none tracking-[8px] md:tracking-[12px] uppercase transition-all"
-                onChange={(e) => setInputCode(e.target.value)}
+                // Replaces any accidental spaces from user typing
+                onChange={(e) =>
+                  setInputCode(e.target.value.replace(/\s/g, "").toUpperCase())
+                }
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleJoinFileRoom();
+                  }
+                }}
               />
               <button
-                onClick={() =>
-                  socket.emit("join_room", inputCode.toUpperCase())
-                }
+                onClick={handleJoinFileRoom}
                 disabled={!isConnected || inputCode.length !== 6}
                 className="w-full mt-4 md:mt-6 bg-secondary py-3 md:py-4 rounded-xl text-sm md:text-base font-bold shadow-[0_0_20px_rgba(236,72,153,0.3)] hover:shadow-[0_0_30px_rgba(236,72,153,0.5)] hover:-translate-y-1 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
@@ -682,15 +741,22 @@ export default function App() {
                   type="text"
                   placeholder="ENTER ROOM ID"
                   className="w-full bg-inputBg/80 border border-borderCol rounded-xl p-3 md:p-4 text-center font-mono mb-3 md:mb-4 text-sm md:text-base outline-none focus:border-amber-500 tracking-widest uppercase"
-                  onChange={(e) => setCodeRoomId(e.target.value.toUpperCase())}
+                  // Replaces any accidental spaces from user typing
+                  onChange={(e) =>
+                    setCodeRoomId(
+                      e.target.value.replace(/\s/g, "").toUpperCase(),
+                    )
+                  }
                   value={codeRoomId}
-                />
-                <button
-                  onClick={() => {
-                    if (codeRoomId) {
-                      socket.emit("join_code_session", codeRoomId);
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleJoinCodeRoom();
                     }
                   }}
+                />
+                <button
+                  onClick={handleJoinCodeRoom}
                   disabled={!isConnected || !codeRoomId}
                   className="w-full bg-primary py-3 rounded-xl text-sm md:text-base font-bold mb-3 hover:-translate-y-1 transition-all shadow-[0_0_15px_rgba(139,92,246,0.3)] disabled:opacity-50 disabled:transform-none"
                 >

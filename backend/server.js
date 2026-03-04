@@ -52,7 +52,8 @@ io.on("connection", (socket) => {
       socket.emit("file_received", { files });
       console.log(`📥 User joined room: ${code}`);
     } else {
-      socket.emit("error", "Invalid Key");
+      // Emits an error if the file key is wrong
+      socket.emit("error", "Invalid Key! No files found for this code.");
     }
   });
 
@@ -81,6 +82,7 @@ io.on("connection", (socket) => {
   // 2. JOIN AN EXISTING CODE ROOM
   socket.on("join_code_session", (roomCode) => {
     if (!activeCodeRooms.has(roomCode)) {
+      // Emits an error if the code room doesn't exist
       socket.emit(
         "error",
         "Invalid Room ID! This room has not been created yet.",
