@@ -458,18 +458,26 @@ export default function App() {
             : "top-0 w-full max-w-full rounded-none bg-bgMain/60 py-3 px-4 md:py-5 md:px-8 border-b border-borderCol"
         }`}
       >
-        <div className="flex items-center gap-2 md:gap-4">
+        <div className="flex items-center gap-3 md:gap-5">
           <img
             src="/logo.png"
             alt="FileShare Logo"
-            className={`object-contain drop-shadow-[0_0_12px_rgba(139,92,246,0.6)] transition-all duration-700 ease-in-out ${isScrolled ? "w-8 h-8 md:w-10 md:h-10" : "w-10 h-10 md:w-14 md:h-14"}`}
+            // Increased the width and height, and bumped up the drop-shadow intensity!
+            className={`object-contain drop-shadow-[0_0_18px_rgba(139,92,246,0.9)] transition-all duration-700 ease-in-out ${
+              isScrolled
+                ? "w-10 h-10 md:w-14 md:h-14" // Bigger when scrolled down
+                : "w-14 h-14 md:w-20 md:h-20" // Much bigger when at the top of the page
+            }`}
             onError={(e) => {
               e.target.onerror = null;
               e.target.style.display = "none";
             }}
           />
           <span
-            className={`font-extrabold tracking-tight transition-all duration-700 ease-in-out hidden sm:block ${isScrolled ? "text-xl md:text-2xl" : "text-2xl md:text-3xl"}`}
+            // Also bumped up the text size and weight slightly so it balances with the larger logo
+            className={`font-black tracking-tight transition-all duration-700 ease-in-out hidden sm:block ${
+              isScrolled ? "text-2xl md:text-3xl" : "text-3xl md:text-4xl"
+            }`}
           >
             FileShare
           </span>
