@@ -21,6 +21,7 @@ import {
   X,
   AlertCircle,
 } from "lucide-react";
+import DinoGame from "./DinoGame";
 
 // === CONNECTING TO YOUR LIVE RENDER SERVER ===
 const socket = io("https://fileshare-r6cf.onrender.com", {
@@ -105,144 +106,6 @@ const InteractiveGrid = React.memo(() => {
           />
         );
       })}
-    </div>
-  );
-});
-
-// --- NEW: CRAZY OFFLINE INTERACTIVE ARCADE (THEMED) ---
-const OfflineArcade = React.memo(() => {
-  const canvasRef = useRef(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    let animationFrameId;
-    let particles = [];
-    const colors = ["#8B5CF6", "#EC4899", "#10B981", "#F59E0B"];
-
-    let mouse = { x: -1000, y: -1000 };
-
-    const resize = () => {
-      canvas.width = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
-      init();
-    };
-
-    class Particle {
-      constructor(x, y) {
-        this.x = x;
-        this.y = y;
-        this.size = Math.random() * 4 + 1;
-        this.baseX = this.x;
-        this.baseY = this.y;
-        this.density = Math.random() * 40 + 5;
-        this.color = colors[Math.floor(Math.random() * colors.length)];
-      }
-      draw() {
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.closePath();
-        ctx.fill();
-      }
-      update() {
-        let dx = mouse.x - this.x;
-        let dy = mouse.y - this.y;
-        let distance = Math.sqrt(dx * dx + dy * dy);
-        let forceDirectionX = dx / distance;
-        let forceDirectionY = dy / distance;
-        let maxDistance = 120;
-        let force = (maxDistance - distance) / maxDistance;
-        let directionX = forceDirectionX * force * this.density;
-        let directionY = forceDirectionY * force * this.density;
-
-        if (distance < maxDistance) {
-          this.x -= directionX;
-          this.y -= directionY;
-        } else {
-          if (this.x !== this.baseX) {
-            let dx = this.x - this.baseX;
-            this.x -= dx / 10;
-          }
-          if (this.y !== this.baseY) {
-            let dy = this.y - this.baseY;
-            this.y -= dy / 10;
-          }
-        }
-      }
-    }
-
-    const init = () => {
-      particles = [];
-      const particleCount = window.innerWidth < 768 ? 200 : 500;
-      for (let i = 0; i < particleCount; i++) {
-        let x = Math.random() * canvas.width;
-        let y = Math.random() * canvas.height;
-        particles.push(new Particle(x, y));
-      }
-    };
-
-    window.addEventListener("resize", resize);
-    resize();
-
-    const animate = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      for (let i = 0; i < particles.length; i++) {
-        particles[i].draw();
-        particles[i].update();
-      }
-      animationFrameId = requestAnimationFrame(animate);
-    };
-    animate();
-
-    const handleMouseMove = (e) => {
-      const rect = canvas.getBoundingClientRect();
-      mouse.x = e.clientX - rect.left;
-      mouse.y = e.clientY - rect.top;
-    };
-    const handleMouseLeave = () => {
-      mouse.x = -1000;
-      mouse.y = -1000;
-    };
-
-    canvas.addEventListener("mousemove", handleMouseMove);
-    canvas.addEventListener("mouseleave", handleMouseLeave);
-    canvas.addEventListener("touchmove", (e) => {
-      const rect = canvas.getBoundingClientRect();
-      mouse.x = e.touches[0].clientX - rect.left;
-      mouse.y = e.touches[0].clientY - rect.top;
-    });
-    canvas.addEventListener("touchend", handleMouseLeave);
-
-    return () => {
-      window.removeEventListener("resize", resize);
-      canvas.removeEventListener("mousemove", handleMouseMove);
-      canvas.removeEventListener("mouseleave", handleMouseLeave);
-      cancelAnimationFrame(animationFrameId);
-    };
-  }, []);
-
-  return (
-    <div className="w-full h-64 md:h-80 bg-surface/40 backdrop-blur-md rounded-3xl border border-borderCol overflow-hidden relative group mb-10 shadow-[0_0_40px_rgba(0,0,0,0.3)] flex items-center justify-center animate-fade-in-up">
-      <canvas
-        ref={canvasRef}
-        className="absolute inset-0 w-full h-full z-0 cursor-crosshair"
-      />
-
-      {/* BEAUTIFUL, THEMATIC UI BOX */}
-      <div className="z-10 text-center pointer-events-none p-5 md:p-8 bg-bgMain/70 rounded-2xl backdrop-blur-xl border border-white/5 shadow-2xl">
-        <Loader2 className="w-8 h-8 md:w-10 md:h-10 text-primary mx-auto mb-3 md:mb-4 animate-spin drop-shadow-[0_0_15px_rgba(139,92,246,0.8)]" />
-        <h2 className="text-xl md:text-2xl font-black text-white mb-2 tracking-widest uppercase drop-shadow-md">
-          Establishing Link
-        </h2>
-        <p className="text-textMuted text-xs md:text-sm font-medium max-w-sm mx-auto leading-relaxed">
-          The server is waking up from hibernation.{" "}
-          <br className="hidden md:block" />
-          Hover to manipulate the{" "}
-          <span className="text-primary font-bold">particle matrix</span> while
-          you wait.
-        </p>
-      </div>
     </div>
   );
 });
@@ -666,8 +529,31 @@ export default function App() {
           </p>
         </div>
 
-        {/* --- CRAZY OFFLINE MODE ARCADE --- */}
-        {!isConnected && <OfflineArcade />}
+        {/* --- DINO GAME (OFFLINE MODE) --- */}
+        {!isConnected && (
+          <div className="w-full bg-surface/40 backdrop-blur-md rounded-3xl border border-borderCol overflow-hidden relative mb-10 shadow-[0_0_40px_rgba(0,0,0,0.3)] flex flex-col animate-fade-in-up">
+            {/* TOP TEXT SECTION */}
+            <div className="z-10 text-center p-5 md:p-6 bg-bgMain/60 border-b border-borderCol/50 shadow-sm flex flex-col md:flex-row items-center justify-center gap-4">
+              <Loader2 className="w-6 h-6 md:w-8 md:h-8 text-primary animate-spin drop-shadow-[0_0_10px_rgba(139,92,246,0.8)]" />
+              <div className="text-left text-center md:text-left">
+                <h2 className="text-lg md:text-xl font-black text-white tracking-widest uppercase drop-shadow-md">
+                  Establishing Link...
+                </h2>
+                <p className="text-textMuted text-xs md:text-sm font-medium leading-relaxed">
+                  The server is waking up. Press{" "}
+                  <span className="text-primary font-bold">Space</span> or{" "}
+                  <span className="text-primary font-bold">Tap</span> to play
+                  the Neon Runner!
+                </p>
+              </div>
+            </div>
+
+            {/* GAME SECTION */}
+            <div className="w-full p-2 py-6 md:p-10 flex justify-center items-center bg-black/20">
+              <DinoGame />
+            </div>
+          </div>
+        )}
 
         {/* === SMOOTH TAB TRANSITION WRAPPER === */}
         <div
