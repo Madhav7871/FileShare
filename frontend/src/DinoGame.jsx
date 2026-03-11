@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 
-const DinoGame = () => {
+const DinoGame = ({ isPaused }) => {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const [score, setScore] = useState(0);
@@ -9,6 +9,12 @@ const DinoGame = () => {
   );
   const [gameOver, setGameOver] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
+
+  // Use a ref to track the pause state dynamically inside the game loop without re-triggering the useEffect
+  const isPausedRef = useRef(isPaused);
+  useEffect(() => {
+    isPausedRef.current = isPaused;
+  }, [isPaused]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -52,6 +58,8 @@ const DinoGame = () => {
 
     // Jump Logic
     const jump = () => {
+      if (isPausedRef.current) return; // Completely prevent jumping while paused!
+
       if (!gameRunning && !hasStarted) {
         setHasStarted(true);
         setGameOver(false);
@@ -93,7 +101,7 @@ const DinoGame = () => {
     container.addEventListener("touchstart", handleTap, { passive: false });
     container.addEventListener("mousedown", handleTap);
 
-    // Spawn Obstacles (Wider Spacing)
+    // Spawn Obstacles
     const spawnObstacle = () => {
       const isLarge = Math.random() > 0.5;
       const height = isLarge ? (isMobile ? 35 : 45) : isMobile ? 25 : 30;
@@ -159,8 +167,92 @@ const DinoGame = () => {
       ctx.stroke();
       ctx.shadowBlur = 0; // reset
 
+      // 1. UPDATE GAME PHYSICS (Only if NOT PAUSED and currently running)
+      if (!isPausedRef.current && gameRunning) {
+        // Physics (Gravity applied)
+        player.dy += GRAVITY;
+        player.y += player.dy;
+
+        // Floor collision
+        if (player.y + player.h >= groundY) {
+          player.y = groundY - player.h;
+          player.dy = 0;
+          isJumping = false;
+        }
+
+        // Obstacles
+        for (let i = 0; i < obstacles.length; i++) {
+          let obs = obstacles[i];
+          obs.x -= gameSpeed;
+
+          // Precise Collision Detection (AABB)
+          if (
+            player.x + 6 < obs.x + obs.w - 4 &&
+            player.x + player.w - 6 > obs.x + 4 &&
+            player.y + 4 < obs.y + obs.h &&
+            player.y + player.h - 2 > obs.y + 4
+          ) {
+            gameRunning = false;
+            setGameOver(true);
+            setHasStarted(false);
+            if (currentScore > highScore) {
+              setHighScore(currentScore);
+              localStorage.setItem("neonRunnerHighScore", currentScore);
+            }
+          }
+        }
+
+        // Remove off-screen obstacles
+        obstacles = obstacles.filter((obs) => obs.x + obs.w > 0);
+
+        // Spawn logic
+        framesSinceLastSpawn++;
+        let minGap = Math.floor(Math.random() * 60 + 90);
+
+        if (framesSinceLastSpawn > minGap) {
+          spawnObstacle();
+          framesSinceLastSpawn = 0;
+        }
+
+        // Speed Scaling
+        frames++;
+        currentScore++;
+        let displayScore = Math.floor(currentScore / 10);
+
+        if (currentScore % 10 === 0) {
+          setScore(displayScore);
+        }
+
+        if (displayScore >= 150) {
+          if (frames % 60 === 0) {
+            gameSpeed += 0.03;
+          }
+        } else {
+          if (frames % 500 === 0) {
+            gameSpeed += 0.2;
+          }
+        }
+      }
+
+      // 2. ALWAYS DRAW CURRENT STATE (This keeps it visible even when physics are paused)
+      drawPlayer();
+
+      for (let i = 0; i < obstacles.length; i++) {
+        let obs = obstacles[i];
+        ctx.fillStyle = obs.color;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = obs.color;
+        ctx.beginPath();
+        ctx.moveTo(obs.x, obs.y + obs.h);
+        ctx.lineTo(obs.x + obs.w / 2, obs.y);
+        ctx.lineTo(obs.x + obs.w, obs.y + obs.h);
+        ctx.closePath();
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      // 3. DRAW UI MENUS OVERLAY
       if (!gameRunning) {
-        drawPlayer();
         ctx.fillStyle = "#A1A1AA";
         ctx.textAlign = "center";
 
@@ -178,98 +270,14 @@ const DinoGame = () => {
             logicalWidth / 2,
             isMobile ? 120 : 140,
           );
-        } else {
+        } else if (!isPausedRef.current) {
+          // If paused, don't flash this since the overlay is up
           ctx.font = isMobile ? "bold 14px monospace" : "bold 20px monospace";
           ctx.fillText(
             "Press Space / Tap to Run",
             logicalWidth / 2,
             isMobile ? 100 : 120,
           );
-        }
-        animationId = requestAnimationFrame(animate);
-        return;
-      }
-
-      // Physics (Gravity applied)
-      player.dy += GRAVITY;
-      player.y += player.dy;
-
-      // Floor collision
-      if (player.y + player.h >= groundY) {
-        player.y = groundY - player.h;
-        player.dy = 0;
-        isJumping = false;
-      }
-
-      drawPlayer();
-
-      // Obstacles
-      for (let i = 0; i < obstacles.length; i++) {
-        let obs = obstacles[i];
-        obs.x -= gameSpeed;
-
-        // Draw Spike
-        ctx.fillStyle = obs.color;
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = obs.color;
-        ctx.beginPath();
-        ctx.moveTo(obs.x, obs.y + obs.h);
-        ctx.lineTo(obs.x + obs.w / 2, obs.y);
-        ctx.lineTo(obs.x + obs.w, obs.y + obs.h);
-        ctx.closePath();
-        ctx.fill();
-        ctx.shadowBlur = 0;
-
-        // Precise Collision Detection (AABB)
-        // Shaved a few pixels off the edges so it feels fair
-        if (
-          player.x + 6 < obs.x + obs.w - 4 &&
-          player.x + player.w - 6 > obs.x + 4 &&
-          player.y + 4 < obs.y + obs.h &&
-          player.y + player.h - 2 > obs.y + 4
-        ) {
-          gameRunning = false;
-          setGameOver(true);
-          setHasStarted(false);
-          if (currentScore > highScore) {
-            setHighScore(currentScore);
-            localStorage.setItem("neonRunnerHighScore", currentScore);
-          }
-        }
-      }
-
-      // Remove off-screen obstacles
-      obstacles = obstacles.filter((obs) => obs.x + obs.w > 0);
-
-      // === NEW SPACING LOGIC ===
-      // Calculates distance based on current game speed so jumps are always possible
-      framesSinceLastSpawn++;
-      let minGap = Math.floor(Math.random() * 60 + 90); // Minimum frames between spawns
-
-      if (framesSinceLastSpawn > minGap) {
-        spawnObstacle();
-        framesSinceLastSpawn = 0;
-      }
-
-      // === NEW SPEED SCALING LOGIC ===
-      frames++;
-      currentScore++;
-      let displayScore = Math.floor(currentScore / 10);
-
-      if (currentScore % 10 === 0) {
-        setScore(displayScore);
-      }
-
-      // "Slowly after 150 points increase the speed and slowly slowly"
-      if (displayScore >= 150) {
-        // Increases speed slightly every 1 second (60 frames)
-        if (frames % 60 === 0) {
-          gameSpeed += 0.03;
-        }
-      } else {
-        // Very gentle bump before 150 just to get warmed up
-        if (frames % 500 === 0) {
-          gameSpeed += 0.2;
         }
       }
 
@@ -284,12 +292,12 @@ const DinoGame = () => {
       container.removeEventListener("touchstart", handleTap);
       container.removeEventListener("mousedown", handleTap);
     };
-  }, [hasStarted, gameOver, highScore]);
+  }, [hasStarted, gameOver, highScore]); // Ensure isPaused is NOT here to prevent re-rendering restarts
 
   return (
     <div
       ref={containerRef}
-      className="flex flex-col items-center w-full max-w-[800px] mx-auto select-none cursor-pointer group"
+      className="flex flex-col items-center w-full max-w-[800px] mx-auto select-none cursor-pointer group relative"
     >
       <div className="flex justify-between w-full px-4 mb-3 font-mono text-sm md:text-base text-primary font-bold tracking-widest">
         <span>SCORE: {score}</span>
@@ -298,7 +306,11 @@ const DinoGame = () => {
       <canvas
         ref={canvasRef}
         style={{ width: "100%", height: "auto" }}
-        className="bg-black/40 border border-borderCol rounded-2xl shadow-[0_0_30px_rgba(0,0,0,0.6)] group-hover:border-primary/50 transition-colors touch-none"
+        className={`bg-black/40 border rounded-2xl shadow-[0_0_30px_rgba(0,0,0,0.6)] transition-all touch-none ${
+          isPaused
+            ? "border-emerald-500/50 opacity-80"
+            : "border-borderCol group-hover:border-primary/50"
+        }`}
       />
     </div>
   );

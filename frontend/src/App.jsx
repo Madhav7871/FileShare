@@ -20,6 +20,8 @@ import {
   Film,
   X,
   AlertCircle,
+  Minus,
+  Gamepad2,
 } from "lucide-react";
 import DinoGame from "./DinoGame";
 
@@ -157,6 +159,12 @@ export default function App() {
   const [isConnected, setIsConnected] = useState(socket.connected);
   const [isScrolled, setIsScrolled] = useState(false);
 
+  // Game UI States
+  const [isGameVisible, setIsGameVisible] = useState(!socket.connected);
+  const [isGamePaused, setIsGamePaused] = useState(false);
+  const [showServerWarning, setShowServerWarning] = useState(false);
+  const wasOffline = useRef(!socket.connected);
+
   // Error State for modern toasts
   const [errorToast, setErrorToast] = useState({ show: false, message: "" });
   const toastTimeoutRef = useRef(null);
@@ -219,7 +227,7 @@ export default function App() {
 
     // Global Error Catcher
     socket.on("error", (msg) => {
-      setErrorToast({ show: true, message: msg });
+      setErrorToast({ show: true, message: msg.message || msg });
       setIsEncrypting(false);
       setIsJoiningFileRoom(false);
       setIsJoiningCodeRoom(false);
@@ -258,6 +266,24 @@ export default function App() {
       socket.off("code_session_joined");
     };
   }, []);
+
+  // --- GAME DISPLAY & PAUSE LOGIC ---
+  useEffect(() => {
+    if (isConnected) {
+      if (wasOffline.current) {
+        if (isGameVisible) {
+          setShowServerWarning(true);
+          setIsGamePaused(true);
+        }
+        wasOffline.current = false;
+      }
+    } else {
+      wasOffline.current = true;
+      setIsGameVisible(true);
+      setIsGamePaused(false);
+      setShowServerWarning(false);
+    }
+  }, [isConnected, isGameVisible]);
 
   const handleSend = () => {
     if (files.length === 0) return;
@@ -502,17 +528,38 @@ export default function App() {
           </button>
         </div>
 
-        <div
-          className={`flex items-center gap-1.5 md:gap-2 px-2 py-1.5 md:px-4 md:py-1.5 rounded-full text-[10px] md:text-xs font-bold border backdrop-blur-sm transition-colors ${isConnected ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-red-500/10 border-red-500/20 text-red-400"}`}
-        >
-          {isConnected ? (
-            <Wifi size={12} className="md:w-[14px] md:h-[14px]" />
-          ) : (
-            <WifiOff size={12} className="md:w-[14px] md:h-[14px]" />
+        <div className="flex items-center gap-2 md:gap-3">
+          {/* MINIMIZED GAME RE-ENTRY BUTTON */}
+          {isConnected && (
+            <button
+              onClick={() => {
+                setIsGameVisible((prev) => !prev);
+                setIsGamePaused(false);
+                setShowServerWarning(false);
+              }}
+              className={`p-1.5 md:p-2 rounded-lg transition-all border shadow-sm ${
+                isGameVisible
+                  ? "bg-primary/20 text-primary border-primary/30 shadow-[0_0_10px_rgba(139,92,246,0.2)]"
+                  : "bg-surface text-textMuted hover:text-white hover:bg-surface/80 border-borderCol/50 hover:border-primary/50"
+              }`}
+              title={isGameVisible ? "Minimize Game" : "Play Neon Runner"}
+            >
+              <Gamepad2 size={16} className="md:w-[18px] md:h-[18px]" />
+            </button>
           )}
-          <span className="hidden lg:inline">
-            {isConnected ? "ONLINE" : "OFFLINE"}
-          </span>
+
+          <div
+            className={`flex items-center gap-1.5 md:gap-2 px-2 py-1.5 md:px-4 md:py-1.5 rounded-full text-[10px] md:text-xs font-bold border backdrop-blur-sm transition-colors ${isConnected ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-red-500/10 border-red-500/20 text-red-400"}`}
+          >
+            {isConnected ? (
+              <Wifi size={12} className="md:w-[14px] md:h-[14px]" />
+            ) : (
+              <WifiOff size={12} className="md:w-[14px] md:h-[14px]" />
+            )}
+            <span className="hidden lg:inline">
+              {isConnected ? "ONLINE" : "OFFLINE"}
+            </span>
+          </div>
         </div>
       </nav>
 
@@ -529,28 +576,100 @@ export default function App() {
           </p>
         </div>
 
-        {/* --- DINO GAME (OFFLINE MODE) --- */}
-        {!isConnected && (
+        {/* --- DINO GAME (OFFLINE OR MANUALLY TRIGGERED MODE) --- */}
+        {isGameVisible && (
           <div className="w-full bg-surface/40 backdrop-blur-md rounded-3xl border border-borderCol overflow-hidden relative mb-10 shadow-[0_0_40px_rgba(0,0,0,0.3)] flex flex-col animate-fade-in-up">
+            {/* Top Right Minimize Button */}
+            <button
+              onClick={() => {
+                setIsGameVisible(false);
+                setShowServerWarning(false);
+                setIsGamePaused(false);
+              }}
+              className="absolute top-4 right-4 z-20 p-2 bg-bgMain/60 hover:bg-bgMain text-textMuted hover:text-white rounded-xl border border-borderCol/50 transition-all hover:scale-105"
+              title="Minimize Game"
+            >
+              <Minus size={20} />
+            </button>
+
+            {/* FUNNY SERVER WOKE UP WARNING OVERLAY */}
+            {showServerWarning && (
+              <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in-up">
+                <div className="bg-surface border border-emerald-500/50 p-6 md:p-8 rounded-3xl shadow-[0_0_40px_rgba(16,185,129,0.2)] text-center max-w-sm md:max-w-md mx-4 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-emerald-600"></div>
+                  <button
+                    onClick={() => {
+                      setShowServerWarning(false);
+                      setIsGamePaused(false);
+                    }}
+                    className="absolute top-4 right-4 text-textMuted hover:text-white transition-colors bg-inputBg p-1.5 rounded-lg hover:bg-red-500/20 hover:text-red-400"
+                  >
+                    <X size={18} />
+                  </button>
+                  <div className="w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                    <span className="text-3xl">🐹</span>
+                  </div>
+                  <h3 className="text-xl md:text-2xl font-black text-white mb-2 tracking-wide flex items-center justify-center gap-2">
+                    IT'S ALIVE! <span className="text-emerald-400">⚡</span>
+                  </h3>
+                  <p className="text-sm md:text-base text-textMuted mb-6 leading-relaxed">
+                    The backend hamsters finally finished their coffee!{" "}
+                    <br className="hidden md:block" />
+                    You can keep running from your responsibilities, or minimize
+                    the game to actually transfer some files.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setIsGameVisible(false);
+                      setShowServerWarning(false);
+                      setIsGamePaused(false);
+                    }}
+                    className="w-full bg-emerald-500 py-3 md:py-4 rounded-xl text-white font-bold transition-all hover:bg-emerald-400 hover:-translate-y-1 shadow-[0_0_20px_rgba(16,185,129,0.3)] flex justify-center items-center gap-2 text-sm md:text-base"
+                  >
+                    Fine, I'll go back to work
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* TOP TEXT SECTION */}
             <div className="z-10 text-center p-5 md:p-6 bg-bgMain/60 border-b border-borderCol/50 shadow-sm flex flex-col md:flex-row items-center justify-center gap-4">
-              <Loader2 className="w-6 h-6 md:w-8 md:h-8 text-primary animate-spin drop-shadow-[0_0_10px_rgba(139,92,246,0.8)]" />
-              <div className="text-left text-center md:text-left">
-                <h2 className="text-lg md:text-xl font-black text-white tracking-widest uppercase drop-shadow-md">
-                  Establishing Link...
-                </h2>
-                <p className="text-textMuted text-xs md:text-sm font-medium leading-relaxed">
-                  The server is waking up. Press{" "}
-                  <span className="text-primary font-bold">Space</span> or{" "}
-                  <span className="text-primary font-bold">Tap</span> to play
-                  the Neon Runner!
-                </p>
-              </div>
+              {!isConnected ? (
+                <>
+                  <Loader2 className="w-6 h-6 md:w-8 md:h-8 text-primary animate-spin drop-shadow-[0_0_10px_rgba(139,92,246,0.8)]" />
+                  <div className="text-center md:text-left pr-8">
+                    <h2 className="text-lg md:text-xl font-black text-white tracking-widest uppercase drop-shadow-md">
+                      Establishing Link...
+                    </h2>
+                    <p className="text-textMuted text-xs md:text-sm font-medium leading-relaxed">
+                      The server is waking up. Press{" "}
+                      <span className="text-primary font-bold">Space</span> or{" "}
+                      <span className="text-primary font-bold">Tap</span> to
+                      play the Neon Runner!
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Gamepad2 className="w-6 h-6 md:w-8 md:h-8 text-primary drop-shadow-[0_0_10px_rgba(139,92,246,0.8)]" />
+                  <div className="text-center md:text-left pr-8">
+                    <h2 className="text-lg md:text-xl font-black text-white tracking-widest uppercase drop-shadow-md">
+                      Procrastination Station
+                    </h2>
+                    <p className="text-textMuted text-xs md:text-sm font-medium leading-relaxed">
+                      Servers are fully operational! You{" "}
+                      <span className="italic">should</span> probably hit
+                      minimize and work... but that high score isn't going to
+                      beat itself. 🤫
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* GAME SECTION */}
             <div className="w-full p-2 py-6 md:p-10 flex justify-center items-center bg-black/20">
-              <DinoGame />
+              <DinoGame isPaused={isGamePaused} />
             </div>
           </div>
         )}
