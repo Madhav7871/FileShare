@@ -195,9 +195,12 @@ const DinoGame = ({ isPaused }) => {
             gameRunning = false;
             setGameOver(true);
             setHasStarted(false);
-            if (currentScore > highScore) {
-              setHighScore(currentScore);
-              localStorage.setItem("neonRunnerHighScore", currentScore);
+
+            // --- FIXED HIGH SCORE LOGIC ---
+            let finalScore = Math.floor(currentScore / 10);
+            if (finalScore > highScore) {
+              setHighScore(finalScore);
+              localStorage.setItem("neonRunnerHighScore", finalScore);
             }
           }
         }
