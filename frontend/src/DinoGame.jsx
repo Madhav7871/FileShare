@@ -10,7 +10,27 @@ const DinoGame = ({ isPaused }) => {
   const [gameOver, setGameOver] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
 
-  // Use a ref to track the pause state dynamically inside the game loop without re-triggering the useEffect
+  // === AUDIO SETUP ===
+  const jumpAudioRef = useRef(
+    typeof Audio !== "undefined" ? new Audio("/jump.mp3") : null,
+  );
+  const passAudioRef = useRef(
+    typeof Audio !== "undefined" ? new Audio("/pass.mp3") : null,
+  );
+  const crashAudioRef = useRef(
+    typeof Audio !== "undefined" ? new Audio("/crash.mp3") : null,
+  ); // NEW: Crash Sound
+
+  const playSound = (audioRef) => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(() => {
+        // Silently catch errors
+      });
+    }
+  };
+
+  // Use a ref to track the pause state dynamically
   const isPausedRef = useRef(isPaused);
   useEffect(() => {
     isPausedRef.current = isPaused;
@@ -33,8 +53,8 @@ const DinoGame = ({ isPaused }) => {
     ctx.scale(dpr, dpr);
 
     // === PROPER DINO PHYSICS & CONSTANTS ===
-    const GRAVITY = 0.65; // Snappier gravity
-    const JUMP_POWER = isMobile ? -11 : -12; // Precise jump height
+    const GRAVITY = 0.65;
+    const JUMP_POWER = isMobile ? -11 : -12;
     const GAME_SPEED_START = isMobile ? 5 : 6;
     const groundY = isMobile ? 240 : 200;
 
@@ -47,7 +67,7 @@ const DinoGame = ({ isPaused }) => {
     let gameRunning = hasStarted && !gameOver;
     let framesSinceLastSpawn = 0;
 
-    // The Neon Runner (Man)
+    // The Neon Runner
     const player = {
       x: isMobile ? 40 : 70,
       y: groundY - 40,
@@ -58,7 +78,7 @@ const DinoGame = ({ isPaused }) => {
 
     // Jump Logic
     const jump = () => {
-      if (isPausedRef.current) return; // Completely prevent jumping while paused!
+      if (isPausedRef.current) return;
 
       if (!gameRunning && !hasStarted) {
         setHasStarted(true);
@@ -80,6 +100,7 @@ const DinoGame = ({ isPaused }) => {
       } else if (!isJumping) {
         player.dy = JUMP_POWER;
         isJumping = true;
+        playSound(jumpAudioRef);
       }
     };
 
@@ -112,41 +133,38 @@ const DinoGame = ({ isPaused }) => {
         y: groundY - height,
         w: width,
         h: height,
-        color: "#EC4899", // Pink Neon Spikes
+        color: "#EC4899",
+        passed: false,
       });
     };
 
     // Draw the Running Man
     const drawPlayer = () => {
       ctx.save();
-      ctx.fillStyle = "#8B5CF6"; // Primary Purple
+      ctx.fillStyle = "#8B5CF6";
       ctx.shadowBlur = 12;
       ctx.shadowColor = "#8B5CF6";
 
-      // Head
       ctx.fillRect(player.x + 6, player.y, 12, 12);
-      // Torso
       ctx.fillRect(player.x + 8, player.y + 12, 8, 14);
 
       if (isJumping || !gameRunning) {
-        // Jumping / Static Pose
-        ctx.fillRect(player.x + 2, player.y + 26, 6, 10); // Left leg bent
-        ctx.fillRect(player.x + 16, player.y + 26, 6, 14); // Right leg down
-        ctx.fillRect(player.x, player.y + 14, 6, 10); // Arm up
-        ctx.fillRect(player.x + 18, player.y + 14, 6, 10); // Arm up
+        ctx.fillRect(player.x + 2, player.y + 26, 6, 10);
+        ctx.fillRect(player.x + 16, player.y + 26, 6, 14);
+        ctx.fillRect(player.x, player.y + 14, 6, 10);
+        ctx.fillRect(player.x + 18, player.y + 14, 6, 10);
       } else {
-        // Running Animation (Swaps every 6 frames)
         const runState = Math.floor(frames / 6) % 2;
         if (runState === 0) {
-          ctx.fillRect(player.x + 4, player.y + 26, 6, 14); // Left leg down
-          ctx.fillRect(player.x + 14, player.y + 26, 6, 8); // Right leg bent up
-          ctx.fillRect(player.x + 2, player.y + 14, 6, 10); // Arm forward
-          ctx.fillRect(player.x + 16, player.y + 14, 6, 10); // Arm back
+          ctx.fillRect(player.x + 4, player.y + 26, 6, 14);
+          ctx.fillRect(player.x + 14, player.y + 26, 6, 8);
+          ctx.fillRect(player.x + 2, player.y + 14, 6, 10);
+          ctx.fillRect(player.x + 16, player.y + 14, 6, 10);
         } else {
-          ctx.fillRect(player.x + 4, player.y + 26, 6, 8); // Left leg bent up
-          ctx.fillRect(player.x + 14, player.y + 26, 6, 14); // Right leg down
-          ctx.fillRect(player.x + 16, player.y + 14, 6, 10); // Arm forward
-          ctx.fillRect(player.x + 2, player.y + 14, 6, 10); // Arm back
+          ctx.fillRect(player.x + 4, player.y + 26, 6, 8);
+          ctx.fillRect(player.x + 14, player.y + 26, 6, 14);
+          ctx.fillRect(player.x + 16, player.y + 14, 6, 10);
+          ctx.fillRect(player.x + 2, player.y + 14, 6, 10);
         }
       }
       ctx.restore();
@@ -160,32 +178,28 @@ const DinoGame = ({ isPaused }) => {
       ctx.beginPath();
       ctx.moveTo(0, groundY);
       ctx.lineTo(logicalWidth, groundY);
-      ctx.strokeStyle = "rgba(16, 185, 129, 0.6)"; // Emerald
+      ctx.strokeStyle = "rgba(16, 185, 129, 0.6)";
       ctx.lineWidth = 3;
       ctx.shadowBlur = 10;
       ctx.shadowColor = "#10B981";
       ctx.stroke();
-      ctx.shadowBlur = 0; // reset
+      ctx.shadowBlur = 0;
 
-      // 1. UPDATE GAME PHYSICS (Only if NOT PAUSED and currently running)
       if (!isPausedRef.current && gameRunning) {
-        // Physics (Gravity applied)
         player.dy += GRAVITY;
         player.y += player.dy;
 
-        // Floor collision
         if (player.y + player.h >= groundY) {
           player.y = groundY - player.h;
           player.dy = 0;
           isJumping = false;
         }
 
-        // Obstacles
         for (let i = 0; i < obstacles.length; i++) {
           let obs = obstacles[i];
           obs.x -= gameSpeed;
 
-          // Precise Collision Detection (AABB)
+          // Precise Collision Detection
           if (
             player.x + 6 < obs.x + obs.w - 4 &&
             player.x + player.w - 6 > obs.x + 4 &&
@@ -196,19 +210,23 @@ const DinoGame = ({ isPaused }) => {
             setGameOver(true);
             setHasStarted(false);
 
-            // --- FIXED HIGH SCORE LOGIC ---
+            playSound(crashAudioRef); // NEW: TRIGGER CRASH SOUND HERE
+
             let finalScore = Math.floor(currentScore / 10);
             if (finalScore > highScore) {
               setHighScore(finalScore);
               localStorage.setItem("neonRunnerHighScore", finalScore);
             }
           }
+
+          if (!obs.passed && player.x > obs.x + obs.w) {
+            obs.passed = true;
+            playSound(passAudioRef);
+          }
         }
 
-        // Remove off-screen obstacles
         obstacles = obstacles.filter((obs) => obs.x + obs.w > 0);
 
-        // Spawn logic
         framesSinceLastSpawn++;
         let minGap = Math.floor(Math.random() * 60 + 90);
 
@@ -217,7 +235,6 @@ const DinoGame = ({ isPaused }) => {
           framesSinceLastSpawn = 0;
         }
 
-        // Speed Scaling
         frames++;
         currentScore++;
         let displayScore = Math.floor(currentScore / 10);
@@ -237,7 +254,6 @@ const DinoGame = ({ isPaused }) => {
         }
       }
 
-      // 2. ALWAYS DRAW CURRENT STATE (This keeps it visible even when physics are paused)
       drawPlayer();
 
       for (let i = 0; i < obstacles.length; i++) {
@@ -254,7 +270,6 @@ const DinoGame = ({ isPaused }) => {
         ctx.shadowBlur = 0;
       }
 
-      // 3. DRAW UI MENUS OVERLAY
       if (!gameRunning) {
         ctx.fillStyle = "#A1A1AA";
         ctx.textAlign = "center";
@@ -274,7 +289,6 @@ const DinoGame = ({ isPaused }) => {
             isMobile ? 120 : 140,
           );
         } else if (!isPausedRef.current) {
-          // If paused, don't flash this since the overlay is up
           ctx.font = isMobile ? "bold 14px monospace" : "bold 20px monospace";
           ctx.fillText(
             "Press Space / Tap to Run",
@@ -295,7 +309,7 @@ const DinoGame = ({ isPaused }) => {
       container.removeEventListener("touchstart", handleTap);
       container.removeEventListener("mousedown", handleTap);
     };
-  }, [hasStarted, gameOver, highScore]); // Ensure isPaused is NOT here to prevent re-rendering restarts
+  }, [hasStarted, gameOver, highScore]);
 
   return (
     <div
