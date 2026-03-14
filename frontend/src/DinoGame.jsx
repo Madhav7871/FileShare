@@ -279,7 +279,7 @@ const DinoGame = ({ isPaused }) => {
           ctx.shadowBlur = 10;
           ctx.shadowColor = "#EF4444";
           ctx.font = isMobile ? "bold 24px monospace" : "bold 28px monospace";
-          ctx.fillText("SYSTEM CRASH", logicalWidth / 2, isMobile ? 80 : 100);
+          ctx.fillText("GAME OVER", logicalWidth / 2, isMobile ? 80 : 100);
           ctx.shadowBlur = 0;
           ctx.fillStyle = "#A1A1AA";
           ctx.font = isMobile ? "bold 14px monospace" : "bold 18px monospace";
