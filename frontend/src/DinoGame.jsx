@@ -11,15 +11,22 @@ const DinoGame = ({ isPaused }) => {
   const [hasStarted, setHasStarted] = useState(false);
 
   // === AUDIO SETUP ===
-  const jumpAudioRef = useRef(
-    typeof Audio !== "undefined" ? new Audio("/jump.mp3") : null,
-  );
   const passAudioRef = useRef(
     typeof Audio !== "undefined" ? new Audio("/pass.mp3") : null,
   );
   const crashAudioRef = useRef(
     typeof Audio !== "undefined" ? new Audio("/crash.mp3") : null,
-  ); // NEW: Crash Sound
+  );
+  const bgMusicRef = useRef(
+    typeof Audio !== "undefined" ? new Audio("/bg music for game.mp3") : null,
+  );
+
+  // Set background music to loop
+  useEffect(() => {
+    if (bgMusicRef.current) {
+      bgMusicRef.current.loop = true;
+    }
+  }, []);
 
   const playSound = (audioRef) => {
     if (audioRef.current) {
@@ -29,6 +36,17 @@ const DinoGame = ({ isPaused }) => {
       });
     }
   };
+
+  // Handle play/pause of background music based on game state
+  useEffect(() => {
+    if (bgMusicRef.current) {
+      if (hasStarted && !gameOver && !isPaused) {
+        bgMusicRef.current.play().catch(() => {});
+      } else {
+        bgMusicRef.current.pause();
+      }
+    }
+  }, [hasStarted, gameOver, isPaused]);
 
   // Use a ref to track the pause state dynamically
   const isPausedRef = useRef(isPaused);
@@ -100,7 +118,6 @@ const DinoGame = ({ isPaused }) => {
       } else if (!isJumping) {
         player.dy = JUMP_POWER;
         isJumping = true;
-        playSound(jumpAudioRef);
       }
     };
 
@@ -210,7 +227,7 @@ const DinoGame = ({ isPaused }) => {
             setGameOver(true);
             setHasStarted(false);
 
-            playSound(crashAudioRef); // NEW: TRIGGER CRASH SOUND HERE
+            playSound(crashAudioRef); // PLAY CRASH SOUND HERE
 
             let finalScore = Math.floor(currentScore / 10);
             if (finalScore > highScore) {
