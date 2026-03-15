@@ -168,6 +168,9 @@ export default function App() {
   const [errorToast, setErrorToast] = useState({ show: false, message: "" });
   const toastTimeoutRef = useRef(null);
 
+  // Code Room Textarea Ref for fixing cursor jumping
+  const textareaRef = useRef(null);
+
   // File Share State
   const [files, setFiles] = useState([]);
   const [roomCode, setRoomCode] = useState("");
@@ -235,8 +238,28 @@ export default function App() {
       }, 3500);
     });
 
-    // Code Room Events
-    socket.on("code_update", (newCode) => setCode(newCode));
+    // Code Room Events - Fixed to prevent cursor jumping!
+    socket.on("code_update", (newCode) => {
+      setCode((prevCode) => {
+        if (prevCode === newCode) return prevCode;
+
+        // Preserve cursor if the textarea is currently active
+        if (
+          textareaRef.current &&
+          document.activeElement === textareaRef.current
+        ) {
+          const start = textareaRef.current.selectionStart;
+          const end = textareaRef.current.selectionEnd;
+
+          setTimeout(() => {
+            if (textareaRef.current) {
+              textareaRef.current.setSelectionRange(start, end);
+            }
+          }, 0);
+        }
+        return newCode;
+      });
+    });
 
     socket.on("code_session_created", (roomId) => {
       setCodeRoomId(roomId);
@@ -812,7 +835,7 @@ export default function App() {
 
                 <input
                   type="text"
-                  maxLength="6"
+                  maxLength="7"
                   placeholder="000 000"
                   className="w-full bg-inputBg/80 border border-borderCol rounded-2xl p-4 md:p-6 text-center text-2xl md:text-3xl font-mono focus:border-secondary focus:ring-2 focus:ring-secondary/20 outline-none tracking-[8px] md:tracking-[12px] uppercase transition-all"
                   onChange={(e) =>
@@ -992,6 +1015,7 @@ export default function App() {
                     </button>
                   </div>
                   <textarea
+                    ref={textareaRef}
                     value={code}
                     onChange={(e) => {
                       const newCode = e.target.value;
