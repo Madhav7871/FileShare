@@ -632,7 +632,7 @@ export default function App() {
                     }}
                     className="w-full bg-emerald-500 py-3 md:py-4 rounded-xl text-white font-bold transition-all hover:bg-emerald-400 hover:-translate-y-1 shadow-[0_0_20px_rgba(16,185,129,0.3)] flex justify-center items-center gap-2 text-sm md:text-base"
                   >
-                    Fine, I'll go back to work
+                    Go back to work!!!
                   </button>
                 </div>
               </div>
