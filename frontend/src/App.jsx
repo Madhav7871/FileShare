@@ -515,7 +515,7 @@ export default function App() {
             }}
           />
           <span className="font-black tracking-tight hidden sm:block text-xl md:text-3xl text-white/90">
-            FileShare
+            FileShare.
           </span>
         </div>
 
@@ -920,7 +920,7 @@ export default function App() {
                     <Code2 className="w-6 h-6 md:w-8 md:h-8" />
                   </div>
                   <h3 className="text-xl md:text-2xl font-bold mb-1 md:mb-2">
-                    Code Room
+                    Code Room.
                   </h3>
                   <p className="text-textMuted text-xs md:text-sm mb-6 md:mb-8">
                     Real-time collaborative code editor.
