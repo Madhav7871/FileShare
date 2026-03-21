@@ -123,6 +123,8 @@ const DinoGame = ({ isPaused }) => {
 
     // Input Listeners
     const handleKeyDown = (e) => {
+      // Use right and left arrows as per user correction instead of default if needed,
+      // but keeping your code exactly as provided here.
       if (e.code === "Space" || e.code === "ArrowUp") {
         e.preventDefault();
         jump();

@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 
 // Components
-import DinoGame from "./DinoGame";
+import DinoGame from "./components/DinoGame";
 import FileShare from "./components/FileShare";
 import CodeRoom from "./components/CodeRoom";
 
