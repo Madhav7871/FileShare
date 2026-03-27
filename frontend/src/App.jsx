@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import { io } from "socket.io-client";
-import { Analytics } from "@vercel/analytics/react";
 import {
   AlertCircle,
   X,
@@ -26,6 +25,9 @@ const socket = io("https://fileshare-r6cf.onrender.com", {
   withCredentials: true,
 });
 
+{
+  /* <Analytics />; */
+}
 // --- RESPONSIVE GLOBAL TRACKING GRID ---
 const InteractiveGrid = React.memo(() => {
   const [gridData, setGridData] = useState({ cols: 0, rows: 0, size: 100 });
