@@ -24,7 +24,7 @@ export default function Navbar({
           }}
         />
         <span className="font-black tracking-tight hidden sm:block text-xl md:text-3xl text-white/90">
-          FileShare.
+          ShareFile.
         </span>
       </div>
 
