@@ -280,7 +280,8 @@ export default function FileShare({ socket, isConnected }) {
               </span>
             </div>
             <span className="text-textMuted text-xs md:text-sm font-medium">
-              Drag, Click or <span className="text-primary">Paste</span>
+              Drag, Click or <span className="text-primary">Paste</span>your
+              files here
             </span>
           </div>
 
