@@ -18,6 +18,7 @@ import DinoGame from "./components/DinoGame";
 import FileShare from "./components/FileShare";
 import CodeRoom from "./components/CodeRoom";
 import Navbar from "./components/Navbar"; // <-- Added Navbar import
+import WelcomeModal from "./components/WelcomeModal";
 
 // === CONNECTING TO YOUR LIVE RENDER SERVER ===
 const socket = io("https://fileshare-r6cf.onrender.com", {
@@ -199,6 +200,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-bgMain text-white font-sans selection:bg-primary/30 relative flex flex-col overflow-x-hidden">
+      {/* WELCOME MODAL PLACED HERE */}
+      <WelcomeModal />
+
       <InteractiveGrid />
 
       {/* MODERN ERROR TOAST NOTIFICATION */}
