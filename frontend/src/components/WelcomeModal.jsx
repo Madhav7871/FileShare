@@ -107,7 +107,7 @@ export default function WelcomeModal() {
             onClick={handleClose}
             className="w-full py-3.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold rounded-xl transition-all duration-300 hover:shadow-[0_0_20px_rgba(139,92,246,0.2)]"
           >
-            Got it, let's go!
+            Let's go!
           </button>
         </div>
       </div>
