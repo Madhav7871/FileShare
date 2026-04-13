@@ -17,8 +17,9 @@ import {
 import DinoGame from "./components/DinoGame";
 import FileShare from "./components/FileShare";
 import CodeRoom from "./components/CodeRoom";
-import Navbar from "./components/Navbar"; // <-- Added Navbar import
+import Navbar from "./components/Navbar";
 import WelcomeModal from "./components/WelcomeModal";
+import NearbyRadar from "./components/NearbyRadar";
 
 // === CONNECTING TO YOUR LIVE RENDER SERVER ===
 const socket = io("https://fileshare-r6cf.onrender.com", {
@@ -26,9 +27,6 @@ const socket = io("https://fileshare-r6cf.onrender.com", {
   withCredentials: true,
 });
 
-{
-  /* <Analytics />; */
-}
 // --- RESPONSIVE GLOBAL TRACKING GRID ---
 const InteractiveGrid = React.memo(() => {
   const [gridData, setGridData] = useState({ cols: 0, rows: 0, size: 100 });
@@ -198,10 +196,17 @@ export default function App() {
     }
   }, [isConnected, isGameVisible]);
 
+  // [NEW] Function to handle when a user clicks a device on the radar
+  const handleRadarConnect = (targetSocketId) => {
+    console.log("Ready to connect to:", targetSocketId);
+    // You can add your logic here to start the WebRTC connection
+    // or trigger an automatic file share room join!
+  };
+
   return (
     <div className="min-h-screen bg-bgMain text-white font-sans selection:bg-primary/30 relative flex flex-col overflow-x-hidden">
-      {/* WELCOME MODAL PLACED HERE */}
-      <WelcomeModal />
+      {/* [UPDATED] WELCOME MODAL PLACED HERE WITH SOCKET PROP */}
+      <WelcomeModal socket={socket} />
 
       <InteractiveGrid />
 
@@ -363,6 +368,11 @@ export default function App() {
 
           {/* Render both but hide the inactive one to preserve states! */}
           <div style={{ display: tab === "file" ? "block" : "none" }}>
+            {/* The Nearby Radar is cleanly integrated right above FileShare */}
+            <div className="w-full max-w-2xl mx-auto mb-6">
+              <NearbyRadar socket={socket} onConnect={handleRadarConnect} />
+            </div>
+
             <FileShare socket={socket} isConnected={isConnected} />
           </div>
 

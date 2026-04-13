@@ -1,33 +1,34 @@
 import { useState, useEffect } from "react";
+import { User, ArrowRight, ShieldCheck } from "lucide-react";
 
-export default function WelcomeModal() {
+// Passed the socket prop here!
+export default function WelcomeModal({ socket }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
+  const [name, setName] = useState(""); // State to hold the user's name
 
   // 1. Check local storage on mount
   useEffect(() => {
     const hasSeenWelcome = localStorage.getItem("hasSeenWelcomeModal");
     if (!hasSeenWelcome) {
       setIsOpen(true);
+      // Prevent scrolling while modal is open
+      document.body.style.overflow = "hidden";
     }
   }, []);
 
-  // 2. Handle the 5-second auto-close timer
-  useEffect(() => {
-    let timer;
-    if (isOpen && !isExiting) {
-      timer = setTimeout(() => {
-        handleClose();
-      }, 5000); // 5000ms = 5 seconds
-    }
-    // Cleanup timer if the user closes it manually before 5 seconds
-    return () => clearTimeout(timer);
-  }, [isOpen, isExiting]);
+  // 2. Smooth closing & submission function
+  const handleSubmit = (e) => {
+    if (e) e.preventDefault(); // Prevent page refresh on form submit
 
-  // 3. Smooth closing function
-  const handleClose = () => {
+    // If they entered a name, send it to the backend!
+    if (name.trim() && socket) {
+      socket.emit("set_name", name.trim());
+    }
+
     setIsExiting(true); // Trigger exit animation
     localStorage.setItem("hasSeenWelcomeModal", "true"); // Save to storage
+    document.body.style.overflow = "auto"; // Restore scrolling
 
     // Wait for the CSS exit animation to finish before removing from DOM
     setTimeout(() => {
@@ -45,14 +46,6 @@ export default function WelcomeModal() {
           : "bg-black/60 backdrop-blur-sm"
       }`}
     >
-      {/* Required CSS for the countdown bar */}
-      <style>{`
-        @keyframes shrinkBar {
-          from { transform: scaleX(1); }
-          to { transform: scaleX(0); }
-        }
-      `}</style>
-
       {/* Modal Box */}
       <div
         className={`bg-surface/90 backdrop-blur-xl border border-borderCol rounded-[2rem] w-full max-w-md p-8 relative shadow-[0_0_50px_rgba(139,92,246,0.15)] overflow-hidden transition-all duration-400 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
@@ -61,19 +54,9 @@ export default function WelcomeModal() {
             : "opacity-100 scale-100 translate-y-0"
         }`}
       >
-        {/* Animated Countdown Progress Bar */}
-        <div className="absolute bottom-0 left-0 h-1.5 bg-inputBg w-full z-20">
-          <div
-            className="h-full bg-gradient-to-r from-primary to-secondary origin-left"
-            style={{
-              animation: "shrinkBar 5s linear forwards",
-            }}
-          />
-        </div>
-
         {/* Close 'X' Button */}
         <button
-          onClick={handleClose}
+          onClick={() => handleSubmit()}
           className="absolute top-4 right-4 text-textMuted hover:text-white transition-colors p-2 rounded-full hover:bg-white/10 z-20"
         >
           ✕
@@ -83,32 +66,47 @@ export default function WelcomeModal() {
         <div className="text-center relative z-10">
           {/* Animated Icon */}
           <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-5 border border-primary/20 shadow-inner">
-            <span
-              className="text-3xl animate-bounce"
-              style={{ animationDuration: "2s" }}
-            >
-              👋
-            </span>
+            <User className="text-primary w-8 h-8 animate-pulse" />
           </div>
 
           <h2 className="text-2xl md:text-3xl font-black text-white mb-2 tracking-tight">
             Welcome to{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">
-              FileShare.
+              FileShare
             </span>
           </h2>
 
-          <p className="text-textMuted text-sm md:text-base mb-8 leading-relaxed">
-            Secure, anonymous, peer-to-peer file transfer. No sign-ups, no
-            tracking, no limits.
+          <p className="text-textMuted text-sm md:text-base mb-6 leading-relaxed">
+            Set a display name so people nearby know who they are connecting to
+            on the radar.
           </p>
 
-          <button
-            onClick={handleClose}
-            className="w-full py-3.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold rounded-xl transition-all duration-300 hover:shadow-[0_0_20px_rgba(139,92,246,0.2)]"
-          >
-            Let's go!
-          </button>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <input
+                type="text"
+                placeholder="e.g. Madhav's Mac"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                maxLength={20}
+                autoFocus
+                className="w-full bg-black/30 border border-borderCol text-white px-5 py-4 rounded-xl focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/60 transition-all placeholder:text-gray-600 text-center text-lg font-medium"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3.5 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl transition-all duration-300 shadow-[0_0_20px_rgba(139,92,246,0.3)] flex items-center justify-center gap-2 group"
+            >
+              {name.trim() ? "Enter FileShare" : "Skip (Use Default Name)"}
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </button>
+          </form>
+
+          <div className="mt-6 flex items-center justify-center gap-2 text-xs text-textMuted">
+            <ShieldCheck className="w-4 h-4 text-secondary" />
+            <span>Your name is only visible to nearby users.</span>
+          </div>
         </div>
       </div>
     </div>
