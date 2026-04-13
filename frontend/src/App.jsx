@@ -196,11 +196,53 @@ export default function App() {
     }
   }, [isConnected, isGameVisible]);
 
-  // [NEW] Function to handle when a user clicks a device on the radar
+  // [NEW] Listen for incoming radar invites from other users
+  useEffect(() => {
+    const handleIncomingInvite = (data) => {
+      // Show a browser confirmation popup
+      const accept = window.confirm(
+        `📡 RADAR ALERT:\n\n${data.senderName} wants to share files with you!\n\nDo you want to accept and join their room?`,
+      );
+
+      if (accept) {
+        // Switch to the File Share tab
+        setTab("file");
+        // Alert them the code they need to type in
+        alert(
+          `Great! Enter code ${data.roomCode} in the 'Receive Assets' section to connect and download the files.`,
+        );
+      }
+    };
+
+    socket.on("incoming_radar_invite", handleIncomingInvite);
+
+    // Cleanup the listener when component unmounts
+    return () => socket.off("incoming_radar_invite", handleIncomingInvite);
+  }, []);
+
+  // [UPDATED] Function to handle when a user clicks a device on the radar
   const handleRadarConnect = (targetSocketId) => {
     console.log("Ready to connect to:", targetSocketId);
-    // You can add your logic here to start the WebRTC connection
-    // or trigger an automatic file share room join!
+
+    // 1. Generate a random 6-digit room code for this connection
+    const newRoomCode = Math.random()
+      .toString(36)
+      .substring(2, 8)
+      .toUpperCase();
+
+    // 2. Send the secret invite to the target user via the server
+    socket.emit("send_radar_invite", {
+      targetSocketId: targetSocketId,
+      roomCode: newRoomCode,
+    });
+
+    // 3. Alert the sender what to do next
+    alert(
+      `Invite sent! Your room code is: ${newRoomCode} \n\nGo to 'Send Assets' in the File Share menu and upload your files to this room!`,
+    );
+
+    // Automatically switch them to the File Share tab
+    setTab("file");
   };
 
   return (

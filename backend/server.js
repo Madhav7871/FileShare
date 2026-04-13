@@ -156,6 +156,23 @@ io.on("connection", (socket) => {
   });
 
   // ==========================================
+  // [NEW] RADAR CONNECTION HANDSHAKE
+  // ==========================================
+  // When a user clicks "Connect" on the radar
+  socket.on("send_radar_invite", ({ targetSocketId, roomCode }) => {
+    console.log(
+      `✉️ Invite sent from ${socket.deviceName} to ${targetSocketId}`,
+    );
+
+    // Forward the invite to the target user ONLY
+    io.to(targetSocketId).emit("incoming_radar_invite", {
+      senderId: socket.id,
+      senderName: socket.deviceName,
+      roomCode: roomCode,
+    });
+  });
+
+  // ==========================================
   // FILE SHARE LOGIC
   // ==========================================
   socket.on("create_room", (data) => {
