@@ -127,7 +127,7 @@ const NearbyRadar = ({ socket, onConnect }) => {
               type="text"
               value={myName}
               onChange={(e) => setMyName(e.target.value)}
-              placeholder="e.g. Madhav's Phone"
+              placeholder="e.g. Name"
               maxLength={20}
               autoFocus
               className="flex-1 bg-black/40 border border-borderCol text-white px-4 py-2.5 rounded-xl focus:outline-none focus:border-primary/60"
