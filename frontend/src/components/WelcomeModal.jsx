@@ -85,7 +85,7 @@ export default function WelcomeModal({ socket }) {
             <div>
               <input
                 type="text"
-                placeholder="e.g. Madhav's Mac"
+                placeholder="Enter your display name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 maxLength={20}
