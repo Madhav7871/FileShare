@@ -1,14 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
 
 const DinoGame = ({ isPaused }) => {
-  const canvasRef = useRef(null);
-  const containerRef = useRef(null);
-  const [score, setScore] = useState(0);
-  const [highScore, setHighScore] = useState(
-    parseInt(localStorage.getItem("neonRunnerHighScore")) || 0,
-  );
-  const [gameOver, setGameOver] = useState(false);
-  const [hasStarted, setHasStarted] = useState(false);
+  const [board, setBoard] = useState(Array(9).fill(null));
+  const [isPlayerTurn, setIsPlayerTurn] = useState(true);
+  const [winnerData, setWinnerData] = useState(null); // { winner: 'X' | 'O' | 'Draw', line: [] }
+  const [scores, setScores] = useState({ player: 0, ai: 0 });
 
   // === AUDIO SETUP ===
   const passAudioRef = useRef(
@@ -17,337 +13,204 @@ const DinoGame = ({ isPaused }) => {
   const crashAudioRef = useRef(
     typeof Audio !== "undefined" ? new Audio("/crash.mp3") : null,
   );
-  const bgMusicRef = useRef(
-    typeof Audio !== "undefined" ? new Audio("/bg music for game.mp3") : null,
-  );
-
-  // Set background music to loop
-  useEffect(() => {
-    if (bgMusicRef.current) {
-      bgMusicRef.current.loop = true;
-    }
-  }, []);
 
   const playSound = (audioRef) => {
     if (audioRef.current) {
       audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(() => {
-        // Silently catch errors
-      });
+      audioRef.current.play().catch(() => {});
     }
   };
 
-  // Handle play/pause of background music based on game state
-  useEffect(() => {
-    if (bgMusicRef.current) {
-      if (hasStarted && !gameOver && !isPaused) {
-        bgMusicRef.current.play().catch(() => {});
-      } else {
-        bgMusicRef.current.pause();
+  // === WINNING LOGIC ===
+  const checkWinner = (squares) => {
+    const lines = [
+      [0, 1, 2],
+      [3, 4, 5],
+      [6, 7, 8], // rows
+      [0, 3, 6],
+      [1, 4, 7],
+      [2, 5, 8], // cols
+      [0, 4, 8],
+      [2, 4, 6], // diagonals
+    ];
+    for (let i = 0; i < lines.length; i++) {
+      const [a, b, c] = lines[i];
+      if (
+        squares[a] &&
+        squares[a] === squares[b] &&
+        squares[a] === squares[c]
+      ) {
+        return { winner: squares[a], line: lines[i] };
       }
     }
-  }, [hasStarted, gameOver, isPaused]);
+    if (!squares.includes(null)) return { winner: "Draw", line: [] };
+    return null;
+  };
 
-  // Use a ref to track the pause state dynamically
-  const isPausedRef = useRef(isPaused);
+  // === MEDIUM AI LOGIC ===
+  const getBestMove = (squares) => {
+    const emptySpots = squares
+      .map((val, idx) => (val === null ? idx : null))
+      .filter((val) => val !== null);
+
+    // 1. Check if AI can win on this move
+    for (let i of emptySpots) {
+      const testBoard = [...squares];
+      testBoard[i] = "O";
+      if (checkWinner(testBoard)?.winner === "O") return i;
+    }
+
+    // 2. Check if Player is about to win and BLOCK them
+    for (let i of emptySpots) {
+      const testBoard = [...squares];
+      testBoard[i] = "X";
+      if (checkWinner(testBoard)?.winner === "X") return i;
+    }
+
+    // 3. Take the center if it's available
+    if (emptySpots.includes(4)) return 4;
+
+    // 4. Otherwise, pick a random spot
+    return emptySpots[Math.floor(Math.random() * emptySpots.length)];
+  };
+
+  // === GAMEPLAY EFFECTS ===
   useEffect(() => {
-    isPausedRef.current = isPaused;
-  }, [isPaused]);
+    const result = checkWinner(board);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const container = containerRef.current;
-    const ctx = canvas.getContext("2d");
-    let animationId;
-
-    // === HD CANVAS SCALING ===
-    const isMobile = window.innerWidth < 768;
-    const logicalWidth = isMobile ? 400 : 800;
-    const logicalHeight = isMobile ? 300 : 250;
-    const dpr = window.devicePixelRatio || 1;
-
-    canvas.width = logicalWidth * dpr;
-    canvas.height = logicalHeight * dpr;
-    ctx.scale(dpr, dpr);
-
-    // === PROPER DINO PHYSICS & CONSTANTS ===
-    const GRAVITY = 0.65;
-    const JUMP_POWER = isMobile ? -11 : -12;
-    const GAME_SPEED_START = isMobile ? 5 : 6;
-    const groundY = isMobile ? 240 : 200;
-
-    // Entity States
-    let gameSpeed = GAME_SPEED_START;
-    let isJumping = false;
-    let frames = 0;
-    let obstacles = [];
-    let currentScore = 0;
-    let gameRunning = hasStarted && !gameOver;
-    let framesSinceLastSpawn = 0;
-
-    // The Neon Runner
-    const player = {
-      x: isMobile ? 40 : 70,
-      y: groundY - 40,
-      w: 24,
-      h: 40,
-      dy: 0,
-    };
-
-    // Jump Logic
-    const jump = () => {
-      if (isPausedRef.current) return;
-
-      if (!gameRunning && !hasStarted) {
-        setHasStarted(true);
-        setGameOver(false);
-        obstacles = [];
-        currentScore = 0;
-        framesSinceLastSpawn = 0;
-        gameSpeed = GAME_SPEED_START;
-      } else if (gameOver) {
-        setHasStarted(true);
-        setGameOver(false);
-        obstacles = [];
-        currentScore = 0;
-        setScore(0);
-        framesSinceLastSpawn = 0;
-        gameSpeed = GAME_SPEED_START;
-        player.y = groundY - player.h;
-        player.dy = 0;
-      } else if (!isJumping) {
-        player.dy = JUMP_POWER;
-        isJumping = true;
+    if (result && !winnerData) {
+      setWinnerData(result);
+      if (result.winner === "X") {
+        setScores((s) => ({ ...s, player: s.player + 1 }));
+      } else if (result.winner === "O") {
+        setScores((s) => ({ ...s, ai: s.ai + 1 }));
+        playSound(crashAudioRef); // Play crash sound when AI wins
       }
-    };
+      return;
+    }
 
-    // Input Listeners
-    const handleKeyDown = (e) => {
-      // Use right and left arrows as per user correction instead of default if needed,
-      // but keeping your code exactly as provided here.
-      if (e.code === "Space" || e.code === "ArrowUp") {
-        e.preventDefault();
-        jump();
-      }
-    };
-
-    const handleTap = (e) => {
-      if (e.target.tagName === "BUTTON" || e.target.tagName === "INPUT") return;
-      e.preventDefault();
-      jump();
-    };
-
-    window.addEventListener("keydown", handleKeyDown, { passive: false });
-    container.addEventListener("touchstart", handleTap, { passive: false });
-    container.addEventListener("mousedown", handleTap);
-
-    // Spawn Obstacles
-    const spawnObstacle = () => {
-      const isLarge = Math.random() > 0.5;
-      const height = isLarge ? (isMobile ? 35 : 45) : isMobile ? 25 : 30;
-      const width = isLarge ? 20 : 16;
-
-      obstacles.push({
-        x: logicalWidth,
-        y: groundY - height,
-        w: width,
-        h: height,
-        color: "#EC4899",
-        passed: false,
-      });
-    };
-
-    // Draw the Running Man
-    const drawPlayer = () => {
-      ctx.save();
-      ctx.fillStyle = "#8B5CF6";
-      ctx.shadowBlur = 12;
-      ctx.shadowColor = "#8B5CF6";
-
-      ctx.fillRect(player.x + 6, player.y, 12, 12);
-      ctx.fillRect(player.x + 8, player.y + 12, 8, 14);
-
-      if (isJumping || !gameRunning) {
-        ctx.fillRect(player.x + 2, player.y + 26, 6, 10);
-        ctx.fillRect(player.x + 16, player.y + 26, 6, 14);
-        ctx.fillRect(player.x, player.y + 14, 6, 10);
-        ctx.fillRect(player.x + 18, player.y + 14, 6, 10);
-      } else {
-        const runState = Math.floor(frames / 6) % 2;
-        if (runState === 0) {
-          ctx.fillRect(player.x + 4, player.y + 26, 6, 14);
-          ctx.fillRect(player.x + 14, player.y + 26, 6, 8);
-          ctx.fillRect(player.x + 2, player.y + 14, 6, 10);
-          ctx.fillRect(player.x + 16, player.y + 14, 6, 10);
-        } else {
-          ctx.fillRect(player.x + 4, player.y + 26, 6, 8);
-          ctx.fillRect(player.x + 14, player.y + 26, 6, 14);
-          ctx.fillRect(player.x + 16, player.y + 14, 6, 10);
-          ctx.fillRect(player.x + 2, player.y + 14, 6, 10);
+    // AI Turn
+    if (!isPlayerTurn && !result && !isPaused) {
+      const timer = setTimeout(() => {
+        const move = getBestMove(board);
+        if (move !== undefined) {
+          const newBoard = [...board];
+          newBoard[move] = "O";
+          setBoard(newBoard);
+          playSound(passAudioRef);
+          setIsPlayerTurn(true);
         }
-      }
-      ctx.restore();
-    };
+      }, 600); // 0.6s delay makes it feel like the AI is "thinking"
+      return () => clearTimeout(timer);
+    }
+  }, [board, isPlayerTurn, winnerData, isPaused]);
 
-    // Main Game Loop
-    const animate = () => {
-      ctx.clearRect(0, 0, logicalWidth, logicalHeight);
+  // === USER ACTIONS ===
+  const handleCellClick = (index) => {
+    if (board[index] || winnerData || !isPlayerTurn || isPaused) return;
 
-      // Draw Glowing Ground Line
-      ctx.beginPath();
-      ctx.moveTo(0, groundY);
-      ctx.lineTo(logicalWidth, groundY);
-      ctx.strokeStyle = "rgba(16, 185, 129, 0.6)";
-      ctx.lineWidth = 3;
-      ctx.shadowBlur = 10;
-      ctx.shadowColor = "#10B981";
-      ctx.stroke();
-      ctx.shadowBlur = 0;
+    const newBoard = [...board];
+    newBoard[index] = "X";
+    setBoard(newBoard);
+    playSound(passAudioRef);
+    setIsPlayerTurn(false);
+  };
 
-      if (!isPausedRef.current && gameRunning) {
-        player.dy += GRAVITY;
-        player.y += player.dy;
-
-        if (player.y + player.h >= groundY) {
-          player.y = groundY - player.h;
-          player.dy = 0;
-          isJumping = false;
-        }
-
-        for (let i = 0; i < obstacles.length; i++) {
-          let obs = obstacles[i];
-          obs.x -= gameSpeed;
-
-          // Precise Collision Detection
-          if (
-            player.x + 6 < obs.x + obs.w - 4 &&
-            player.x + player.w - 6 > obs.x + 4 &&
-            player.y + 4 < obs.y + obs.h &&
-            player.y + player.h - 2 > obs.y + 4
-          ) {
-            gameRunning = false;
-            setGameOver(true);
-            setHasStarted(false);
-
-            playSound(crashAudioRef); // PLAY CRASH SOUND HERE
-
-            let finalScore = Math.floor(currentScore / 10);
-            if (finalScore > highScore) {
-              setHighScore(finalScore);
-              localStorage.setItem("neonRunnerHighScore", finalScore);
-            }
-          }
-
-          if (!obs.passed && player.x > obs.x + obs.w) {
-            obs.passed = true;
-            playSound(passAudioRef);
-          }
-        }
-
-        obstacles = obstacles.filter((obs) => obs.x + obs.w > 0);
-
-        framesSinceLastSpawn++;
-        let minGap = Math.floor(Math.random() * 60 + 90);
-
-        if (framesSinceLastSpawn > minGap) {
-          spawnObstacle();
-          framesSinceLastSpawn = 0;
-        }
-
-        frames++;
-        currentScore++;
-        let displayScore = Math.floor(currentScore / 10);
-
-        if (currentScore % 10 === 0) {
-          setScore(displayScore);
-        }
-
-        if (displayScore >= 150) {
-          if (frames % 60 === 0) {
-            gameSpeed += 0.03;
-          }
-        } else {
-          if (frames % 500 === 0) {
-            gameSpeed += 0.2;
-          }
-        }
-      }
-
-      drawPlayer();
-
-      for (let i = 0; i < obstacles.length; i++) {
-        let obs = obstacles[i];
-        ctx.fillStyle = obs.color;
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = obs.color;
-        ctx.beginPath();
-        ctx.moveTo(obs.x, obs.y + obs.h);
-        ctx.lineTo(obs.x + obs.w / 2, obs.y);
-        ctx.lineTo(obs.x + obs.w, obs.y + obs.h);
-        ctx.closePath();
-        ctx.fill();
-        ctx.shadowBlur = 0;
-      }
-
-      if (!gameRunning) {
-        ctx.fillStyle = "#A1A1AA";
-        ctx.textAlign = "center";
-
-        if (gameOver) {
-          ctx.fillStyle = "#EF4444";
-          ctx.shadowBlur = 10;
-          ctx.shadowColor = "#EF4444";
-          ctx.font = isMobile ? "bold 24px monospace" : "bold 28px monospace";
-          ctx.fillText("GAME OVER", logicalWidth / 2, isMobile ? 80 : 100);
-          ctx.shadowBlur = 0;
-          ctx.fillStyle = "#A1A1AA";
-          ctx.font = isMobile ? "bold 14px monospace" : "bold 18px monospace";
-          ctx.fillText(
-            "Press Space / Tap to Reboot",
-            logicalWidth / 2,
-            isMobile ? 120 : 140,
-          );
-        } else if (!isPausedRef.current) {
-          ctx.font = isMobile ? "bold 14px monospace" : "bold 20px monospace";
-          ctx.fillText(
-            "Press Space / Tap to Run",
-            logicalWidth / 2,
-            isMobile ? 100 : 120,
-          );
-        }
-      }
-
-      animationId = requestAnimationFrame(animate);
-    };
-
-    animate();
-
-    return () => {
-      cancelAnimationFrame(animationId);
-      window.removeEventListener("keydown", handleKeyDown);
-      container.removeEventListener("touchstart", handleTap);
-      container.removeEventListener("mousedown", handleTap);
-    };
-  }, [hasStarted, gameOver, highScore]);
+  const resetGame = () => {
+    setBoard(Array(9).fill(null));
+    setWinnerData(null);
+    setIsPlayerTurn(true);
+  };
 
   return (
-    <div
-      ref={containerRef}
-      className="flex flex-col items-center w-full max-w-[800px] mx-auto select-none cursor-pointer group relative"
-    >
-      <div className="flex justify-between w-full px-4 mb-3 font-mono text-sm md:text-base text-primary font-bold tracking-widest">
-        <span>SCORE: {score}</span>
-        <span>HI-SCORE: {highScore}</span>
+    <div className="flex flex-col items-center w-full max-w-[500px] mx-auto select-none p-4 relative group">
+      {/* Header / Scoreboard */}
+      <div className="flex justify-between w-full px-4 mb-6 font-mono text-sm md:text-base text-primary font-bold tracking-widest bg-black/40 p-3 rounded-lg border border-borderCol">
+        <span className="text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]">
+          YOU (X): {scores.player}
+        </span>
+        <span className="text-purple-500 drop-shadow-[0_0_8px_rgba(168,85,247,0.8)]">
+          AI (O): {scores.ai}
+        </span>
       </div>
-      <canvas
-        ref={canvasRef}
-        style={{ width: "100%", height: "auto" }}
-        className={`bg-black/40 border rounded-2xl shadow-[0_0_30px_rgba(0,0,0,0.6)] transition-all touch-none ${
+
+      {/* Game Board */}
+      <div
+        className={`grid grid-cols-3 gap-2 sm:gap-3 bg-black/50 p-3 sm:p-4 rounded-2xl shadow-[0_0_30px_rgba(0,0,0,0.6)] transition-all border ${
           isPaused
             ? "border-emerald-500/50 opacity-80"
             : "border-borderCol group-hover:border-primary/50"
         }`}
-      />
+      >
+        {board.map((cell, index) => {
+          const isWinningCell = winnerData?.line?.includes(index);
+
+          return (
+            <button
+              key={index}
+              onClick={() => handleCellClick(index)}
+              disabled={!!cell || !!winnerData || !isPlayerTurn || isPaused}
+              className={`w-20 h-20 sm:w-28 sm:h-28 flex items-center justify-center text-4xl sm:text-6xl font-bold rounded-xl transition-all duration-300
+                ${!cell && !winnerData && isPlayerTurn && !isPaused ? "hover:bg-white/10 cursor-pointer" : "cursor-default"}
+                ${cell ? "bg-white/5" : "bg-black/40"}
+                ${isWinningCell ? "bg-white/20 scale-105" : ""}
+              `}
+            >
+              {cell === "X" && (
+                <span className="text-emerald-400 drop-shadow-[0_0_12px_rgba(16,185,129,0.9)] animate-pulse">
+                  X
+                </span>
+              )}
+              {cell === "O" && (
+                <span className="text-purple-500 drop-shadow-[0_0_12px_rgba(168,85,247,0.9)] animate-pulse">
+                  O
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Status & Restart overlay */}
+      <div className="h-16 mt-6 flex flex-col items-center justify-center w-full">
+        {winnerData ? (
+          <div className="flex flex-col items-center animate-fade-in">
+            <span
+              className={`text-xl sm:text-2xl font-bold font-mono tracking-wider mb-2 ${
+                winnerData.winner === "X"
+                  ? "text-emerald-400"
+                  : winnerData.winner === "O"
+                    ? "text-red-400"
+                    : "text-gray-400"
+              }`}
+            >
+              {winnerData.winner === "X"
+                ? "YOU WIN!"
+                : winnerData.winner === "O"
+                  ? "AI WINS!"
+                  : "DRAW!"}
+            </span>
+            <button
+              onClick={resetGame}
+              className="px-6 py-2 bg-primary/20 hover:bg-primary/40 text-primary border border-primary/50 rounded-lg font-mono text-sm tracking-widest transition-all"
+            >
+              PLAY AGAIN
+            </button>
+          </div>
+        ) : isPaused ? (
+          <span className="text-gray-400 font-mono tracking-widest animate-pulse">
+            SYSTEM PAUSED
+          </span>
+        ) : (
+          <span
+            className={`font-mono tracking-widest transition-colors ${
+              isPlayerTurn ? "text-emerald-400" : "text-purple-500"
+            }`}
+          >
+            {isPlayerTurn ? ">> YOUR TURN" : "AI IS THINKING..."}
+          </span>
+        )}
+      </div>
     </div>
   );
 };
