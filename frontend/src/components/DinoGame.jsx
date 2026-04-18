@@ -6,6 +6,9 @@ const DinoGame = ({ isPaused }) => {
   const [winnerData, setWinnerData] = useState(null); // { winner: 'X' | 'O' | 'Draw', line: [] }
   const [scores, setScores] = useState({ player: 0, ai: 0 });
 
+  // NEW: Difficulty state
+  const [difficulty, setDifficulty] = useState("medium");
+
   // === AUDIO SETUP ===
   const passAudioRef = useRef(
     typeof Audio !== "undefined" ? new Audio("/pass.mp3") : null,
@@ -47,30 +50,90 @@ const DinoGame = ({ isPaused }) => {
     return null;
   };
 
-  // === MEDIUM AI LOGIC ===
+  // Helper for Minimax (faster than creating objects)
+  const checkWinSimple = (squares) => {
+    const result = checkWinner(squares);
+    return result ? result.winner : null;
+  };
+
+  // === HARD AI LOGIC (MINIMAX) ===
+  const minimax = (newBoard, player) => {
+    const emptySpots = newBoard
+      .map((val, idx) => (val === null ? idx : null))
+      .filter((val) => val !== null);
+    const winner = checkWinSimple(newBoard);
+
+    if (winner === "X") return { score: -10 };
+    if (winner === "O") return { score: 10 };
+    if (emptySpots.length === 0) return { score: 0 };
+
+    const moves = [];
+    for (let i = 0; i < emptySpots.length; i++) {
+      const move = {};
+      move.index = emptySpots[i];
+      newBoard[emptySpots[i]] = player;
+
+      if (player === "O") {
+        const result = minimax(newBoard, "X");
+        move.score = result.score;
+      } else {
+        const result = minimax(newBoard, "O");
+        move.score = result.score;
+      }
+
+      newBoard[emptySpots[i]] = null;
+      moves.push(move);
+    }
+
+    let bestMove;
+    if (player === "O") {
+      let bestScore = -10000;
+      for (let i = 0; i < moves.length; i++) {
+        if (moves[i].score > bestScore) {
+          bestScore = moves[i].score;
+          bestMove = i;
+        }
+      }
+    } else {
+      let bestScore = 10000;
+      for (let i = 0; i < moves.length; i++) {
+        if (moves[i].score < bestScore) {
+          bestScore = moves[i].score;
+          bestMove = i;
+        }
+      }
+    }
+    return moves[bestMove];
+  };
+
+  // === DYNAMIC AI LOGIC ===
   const getBestMove = (squares) => {
     const emptySpots = squares
       .map((val, idx) => (val === null ? idx : null))
       .filter((val) => val !== null);
 
-    // 1. Check if AI can win on this move
+    // EASY: Completely random moves
+    if (difficulty === "easy") {
+      return emptySpots[Math.floor(Math.random() * emptySpots.length)];
+    }
+
+    // HARD: Unbeatable Minimax Algorithm
+    if (difficulty === "hard") {
+      return minimax([...squares], "O").index;
+    }
+
+    // MEDIUM: Original Logic (Win, Block, Center, Random)
     for (let i of emptySpots) {
       const testBoard = [...squares];
       testBoard[i] = "O";
       if (checkWinner(testBoard)?.winner === "O") return i;
     }
-
-    // 2. Check if Player is about to win and BLOCK them
     for (let i of emptySpots) {
       const testBoard = [...squares];
       testBoard[i] = "X";
       if (checkWinner(testBoard)?.winner === "X") return i;
     }
-
-    // 3. Take the center if it's available
     if (emptySpots.includes(4)) return 4;
-
-    // 4. Otherwise, pick a random spot
     return emptySpots[Math.floor(Math.random() * emptySpots.length)];
   };
 
@@ -84,12 +147,11 @@ const DinoGame = ({ isPaused }) => {
         setScores((s) => ({ ...s, player: s.player + 1 }));
       } else if (result.winner === "O") {
         setScores((s) => ({ ...s, ai: s.ai + 1 }));
-        playSound(crashAudioRef); // Play crash sound when AI wins
+        playSound(crashAudioRef);
       }
       return;
     }
 
-    // AI Turn
     if (!isPlayerTurn && !result && !isPaused) {
       const timer = setTimeout(() => {
         const move = getBestMove(board);
@@ -100,10 +162,10 @@ const DinoGame = ({ isPaused }) => {
           playSound(passAudioRef);
           setIsPlayerTurn(true);
         }
-      }, 600); // 0.6s delay makes it feel like the AI is "thinking"
+      }, 600);
       return () => clearTimeout(timer);
     }
-  }, [board, isPlayerTurn, winnerData, isPaused]);
+  }, [board, isPlayerTurn, winnerData, isPaused, difficulty]); // Added difficulty to dependency array
 
   // === USER ACTIONS ===
   const handleCellClick = (index) => {
@@ -122,10 +184,34 @@ const DinoGame = ({ isPaused }) => {
     setIsPlayerTurn(true);
   };
 
+  const changeDifficulty = (level) => {
+    setDifficulty(level);
+    resetGame();
+    // Optional: Reset scores when changing difficulty
+    // setScores({ player: 0, ai: 0 });
+  };
+
   return (
     <div className="flex flex-col items-center w-full max-w-[500px] mx-auto select-none p-4 relative group">
+      {/* NEW: Difficulty Selector */}
+      <div className="flex gap-2 mb-4 w-full justify-center">
+        {["easy", "medium", "hard"].map((level) => (
+          <button
+            key={level}
+            onClick={() => changeDifficulty(level)}
+            className={`px-4 py-1.5 font-mono text-xs md:text-sm uppercase tracking-wider rounded-md border transition-all duration-300 ${
+              difficulty === level
+                ? "bg-purple-500/20 border-purple-500 text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]"
+                : "bg-black/40 border-gray-700 text-gray-500 hover:border-purple-500/50 hover:text-gray-300"
+            }`}
+          >
+            {level}
+          </button>
+        ))}
+      </div>
+
       {/* Header / Scoreboard */}
-      <div className="flex justify-between w-full px-4 mb-6 font-mono text-sm md:text-base text-primary font-bold tracking-widest bg-black/40 p-3 rounded-lg border border-borderCol">
+      <div className="flex justify-between w-full px-4 mb-6 font-mono text-sm md:text-base text-white font-bold tracking-widest bg-black/40 p-3 rounded-lg border border-gray-800">
         <span className="text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]">
           YOU (X): {scores.player}
         </span>
@@ -139,7 +225,7 @@ const DinoGame = ({ isPaused }) => {
         className={`grid grid-cols-3 gap-2 sm:gap-3 bg-black/50 p-3 sm:p-4 rounded-2xl shadow-[0_0_30px_rgba(0,0,0,0.6)] transition-all border ${
           isPaused
             ? "border-emerald-500/50 opacity-80"
-            : "border-borderCol group-hover:border-primary/50"
+            : "border-gray-800 group-hover:border-purple-500/30"
         }`}
       >
         {board.map((cell, index) => {
@@ -153,7 +239,7 @@ const DinoGame = ({ isPaused }) => {
               className={`w-20 h-20 sm:w-28 sm:h-28 flex items-center justify-center text-4xl sm:text-6xl font-bold rounded-xl transition-all duration-300
                 ${!cell && !winnerData && isPlayerTurn && !isPaused ? "hover:bg-white/10 cursor-pointer" : "cursor-default"}
                 ${cell ? "bg-white/5" : "bg-black/40"}
-                ${isWinningCell ? "bg-white/20 scale-105" : ""}
+                ${isWinningCell ? "bg-white/20 scale-105 ring-2 ring-white/50" : ""}
               `}
             >
               {cell === "X" && (
@@ -192,7 +278,7 @@ const DinoGame = ({ isPaused }) => {
             </span>
             <button
               onClick={resetGame}
-              className="px-6 py-2 bg-primary/20 hover:bg-primary/40 text-primary border border-primary/50 rounded-lg font-mono text-sm tracking-widest transition-all"
+              className="px-6 py-2 bg-purple-500/10 hover:bg-purple-500/30 text-purple-400 border border-purple-500/50 rounded-lg font-mono text-sm tracking-widest transition-all"
             >
               PLAY AGAIN
             </button>
