@@ -3,11 +3,12 @@ import React, { useEffect, useRef, useState } from "react";
 const DinoGame = ({ isPaused }) => {
   const [board, setBoard] = useState(Array(9).fill(null));
   const [isPlayerTurn, setIsPlayerTurn] = useState(true);
-  const [winnerData, setWinnerData] = useState(null); // { winner: 'X' | 'O' | 'Draw', line: [] }
+  const [winnerData, setWinnerData] = useState(null);
   const [scores, setScores] = useState({ player: 0, ai: 0 });
 
-  // NEW: Difficulty state
+  // Difficulty & Dropdown state
   const [difficulty, setDifficulty] = useState("medium");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   // === AUDIO SETUP ===
   const passAudioRef = useRef(
@@ -50,7 +51,6 @@ const DinoGame = ({ isPaused }) => {
     return null;
   };
 
-  // Helper for Minimax (faster than creating objects)
   const checkWinSimple = (squares) => {
     const result = checkWinner(squares);
     return result ? result.winner : null;
@@ -112,17 +112,14 @@ const DinoGame = ({ isPaused }) => {
       .map((val, idx) => (val === null ? idx : null))
       .filter((val) => val !== null);
 
-    // EASY: Completely random moves
     if (difficulty === "easy") {
       return emptySpots[Math.floor(Math.random() * emptySpots.length)];
     }
 
-    // HARD: Unbeatable Minimax Algorithm
     if (difficulty === "hard") {
       return minimax([...squares], "O").index;
     }
 
-    // MEDIUM: Original Logic (Win, Block, Center, Random)
     for (let i of emptySpots) {
       const testBoard = [...squares];
       testBoard[i] = "O";
@@ -165,7 +162,7 @@ const DinoGame = ({ isPaused }) => {
       }, 600);
       return () => clearTimeout(timer);
     }
-  }, [board, isPlayerTurn, winnerData, isPaused, difficulty]); // Added difficulty to dependency array
+  }, [board, isPlayerTurn, winnerData, isPaused, difficulty]);
 
   // === USER ACTIONS ===
   const handleCellClick = (index) => {
@@ -186,32 +183,73 @@ const DinoGame = ({ isPaused }) => {
 
   const changeDifficulty = (level) => {
     setDifficulty(level);
+    setIsDropdownOpen(false); // Close dropdown upon selection
     resetGame();
-    // Optional: Reset scores when changing difficulty
-    // setScores({ player: 0, ai: 0 });
   };
 
   return (
-    <div className="flex flex-col items-center w-full max-w-[500px] mx-auto select-none p-4 relative group">
-      {/* NEW: Difficulty Selector */}
-      <div className="flex gap-2 mb-4 w-full justify-center">
-        {["easy", "medium", "hard"].map((level) => (
-          <button
-            key={level}
-            onClick={() => changeDifficulty(level)}
-            className={`px-4 py-1.5 font-mono text-xs md:text-sm uppercase tracking-wider rounded-md border transition-all duration-300 ${
-              difficulty === level
-                ? "bg-purple-500/20 border-purple-500 text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]"
-                : "bg-black/40 border-gray-700 text-gray-500 hover:border-purple-500/50 hover:text-gray-300"
-            }`}
+    // Reduced max-width from 500px to 380px and tightened padding
+    <div className="flex flex-col items-center w-full max-w-[380px] mx-auto select-none p-2 relative group">
+      {/* Invisible overlay to close dropdown when clicking outside */}
+      {isDropdownOpen && (
+        <div
+          className="fixed inset-0 z-10"
+          onClick={() => setIsDropdownOpen(false)}
+        />
+      )}
+
+      {/* Sleek Animated Dropdown Menu - Shrunk width and padding */}
+      <div className="relative z-20 mb-4 flex flex-col items-center w-full">
+        <button
+          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+          className={`flex items-center justify-between w-56 px-4 py-2.5 bg-black/60 border rounded-lg font-mono text-xs uppercase tracking-widest transition-all duration-300 shadow-[0_0_10px_rgba(0,0,0,0.5)] ${
+            isDropdownOpen
+              ? "border-purple-500 text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]"
+              : "border-gray-700 text-gray-400 hover:border-purple-500/50 hover:text-purple-300"
+          }`}
+        >
+          <span>Level: {difficulty}</span>
+          <svg
+            className={`w-3.5 h-3.5 transform transition-transform duration-300 ${isDropdownOpen ? "rotate-180" : "rotate-0"}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
           >
-            {level}
-          </button>
-        ))}
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
+        </button>
+
+        {/* Sliding Options */}
+        <div
+          className={`absolute top-full mt-1.5 w-56 bg-black/90 border border-gray-800 rounded-lg overflow-hidden transition-all duration-300 transform origin-top backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.8)] ${
+            isDropdownOpen
+              ? "opacity-100 scale-y-100 translate-y-0"
+              : "opacity-0 scale-y-0 -translate-y-4 pointer-events-none"
+          }`}
+        >
+          {["easy", "medium", "hard"].map((level) => (
+            <button
+              key={level}
+              onClick={() => changeDifficulty(level)}
+              className={`w-full text-left px-4 py-2.5 font-mono text-xs uppercase tracking-widest transition-colors duration-200 ${
+                difficulty === level
+                  ? "bg-purple-500/20 text-purple-400 border-l-2 border-purple-500"
+                  : "text-gray-500 hover:bg-white/5 hover:text-gray-300 border-l-2 border-transparent"
+              }`}
+            >
+              {level}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Header / Scoreboard */}
-      <div className="flex justify-between w-full px-4 mb-6 font-mono text-sm md:text-base text-white font-bold tracking-widest bg-black/40 p-3 rounded-lg border border-gray-800">
+      {/* Header / Scoreboard - Smaller text and padding */}
+      <div className="flex justify-between w-full px-4 mb-4 font-mono text-xs md:text-sm text-white font-bold tracking-widest bg-black/40 p-2.5 rounded-lg border border-gray-800">
         <span className="text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]">
           YOU (X): {scores.player}
         </span>
@@ -220,9 +258,9 @@ const DinoGame = ({ isPaused }) => {
         </span>
       </div>
 
-      {/* Game Board */}
+      {/* Game Board - Tighter gap and padding */}
       <div
-        className={`grid grid-cols-3 gap-2 sm:gap-3 bg-black/50 p-3 sm:p-4 rounded-2xl shadow-[0_0_30px_rgba(0,0,0,0.6)] transition-all border ${
+        className={`grid grid-cols-3 gap-2 bg-black/50 p-3 rounded-xl shadow-[0_0_20px_rgba(0,0,0,0.6)] transition-all border relative z-0 ${
           isPaused
             ? "border-emerald-500/50 opacity-80"
             : "border-gray-800 group-hover:border-purple-500/30"
@@ -236,7 +274,8 @@ const DinoGame = ({ isPaused }) => {
               key={index}
               onClick={() => handleCellClick(index)}
               disabled={!!cell || !!winnerData || !isPlayerTurn || isPaused}
-              className={`w-20 h-20 sm:w-28 sm:h-28 flex items-center justify-center text-4xl sm:text-6xl font-bold rounded-xl transition-all duration-300
+              // Drastically reduced cell sizes from w-28 to w-16/w-20, and text from text-6xl to text-4xl/text-5xl
+              className={`w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center text-4xl sm:text-5xl font-bold rounded-lg transition-all duration-300
                 ${!cell && !winnerData && isPlayerTurn && !isPaused ? "hover:bg-white/10 cursor-pointer" : "cursor-default"}
                 ${cell ? "bg-white/5" : "bg-black/40"}
                 ${isWinningCell ? "bg-white/20 scale-105 ring-2 ring-white/50" : ""}
@@ -257,12 +296,12 @@ const DinoGame = ({ isPaused }) => {
         })}
       </div>
 
-      {/* Status & Restart overlay */}
-      <div className="h-16 mt-6 flex flex-col items-center justify-center w-full">
+      {/* Status & Restart overlay - Reduced height and margin */}
+      <div className="h-12 mt-4 flex flex-col items-center justify-center w-full">
         {winnerData ? (
           <div className="flex flex-col items-center animate-fade-in">
             <span
-              className={`text-xl sm:text-2xl font-bold font-mono tracking-wider mb-2 ${
+              className={`text-lg sm:text-xl font-bold font-mono tracking-wider mb-2 ${
                 winnerData.winner === "X"
                   ? "text-emerald-400"
                   : winnerData.winner === "O"
@@ -278,18 +317,18 @@ const DinoGame = ({ isPaused }) => {
             </span>
             <button
               onClick={resetGame}
-              className="px-6 py-2 bg-purple-500/10 hover:bg-purple-500/30 text-purple-400 border border-purple-500/50 rounded-lg font-mono text-sm tracking-widest transition-all"
+              className="px-5 py-1.5 bg-purple-500/10 hover:bg-purple-500/30 text-purple-400 border border-purple-500/50 rounded-md font-mono text-xs tracking-widest transition-all shadow-[0_0_10px_rgba(168,85,247,0.2)] hover:shadow-[0_0_15px_rgba(168,85,247,0.4)]"
             >
               PLAY AGAIN
             </button>
           </div>
         ) : isPaused ? (
-          <span className="text-gray-400 font-mono tracking-widest animate-pulse">
+          <span className="text-gray-400 font-mono text-xs tracking-widest animate-pulse">
             SYSTEM PAUSED
           </span>
         ) : (
           <span
-            className={`font-mono tracking-widest transition-colors ${
+            className={`font-mono text-xs tracking-widest transition-colors ${
               isPlayerTurn ? "text-emerald-400" : "text-purple-500"
             }`}
           >
