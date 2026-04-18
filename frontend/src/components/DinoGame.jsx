@@ -188,7 +188,6 @@ const DinoGame = ({ isPaused }) => {
   };
 
   return (
-    // Changed to a side-by-side flex layout (md:flex-row) and increased max width to accommodate both columns
     <div className="flex flex-col md:flex-row items-center md:items-start justify-center gap-6 md:gap-8 w-full max-w-[600px] mx-auto select-none p-2 relative group">
       {/* Invisible overlay to close dropdown when clicking outside */}
       {isDropdownOpen && (
@@ -239,8 +238,8 @@ const DinoGame = ({ isPaused }) => {
 
       {/* RIGHT COLUMN: Controls Panel */}
       <div className="flex flex-col w-full max-w-[220px] gap-4 z-20">
-        {/* Sleek Animated Dropdown Menu */}
-        <div className="relative w-full">
+        {/* Sleek Animated Dropdown Menu - FIXED OVERLAP (Now an in-flow accordion) */}
+        <div className="w-full relative z-30">
           <button
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             className={`flex items-center justify-between w-full px-4 py-3 bg-black/60 border rounded-lg font-mono text-xs uppercase tracking-widest transition-all duration-300 shadow-[0_0_10px_rgba(0,0,0,0.5)] ${
@@ -265,31 +264,33 @@ const DinoGame = ({ isPaused }) => {
             </svg>
           </button>
 
-          {/* Sliding Options */}
+          {/* Sliding Options - Removed "absolute", added smooth max-height to push content down */}
           <div
-            className={`absolute top-full mt-1.5 w-full bg-black/90 border border-gray-800 rounded-lg overflow-hidden transition-all duration-300 transform origin-top backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.8)] ${
+            className={`overflow-hidden transition-all duration-300 ease-in-out ${
               isDropdownOpen
-                ? "opacity-100 scale-y-100 translate-y-0"
-                : "opacity-0 scale-y-0 -translate-y-4 pointer-events-none"
+                ? "max-h-48 opacity-100 mt-2"
+                : "max-h-0 opacity-0 mt-0"
             }`}
           >
-            {["easy", "medium", "hard"].map((level) => (
-              <button
-                key={level}
-                onClick={() => changeDifficulty(level)}
-                className={`w-full text-left px-4 py-2.5 font-mono text-xs uppercase tracking-widest transition-colors duration-200 ${
-                  difficulty === level
-                    ? "bg-purple-500/20 text-purple-400 border-l-2 border-purple-500"
-                    : "text-gray-500 hover:bg-white/5 hover:text-gray-300 border-l-2 border-transparent"
-                }`}
-              >
-                {level}
-              </button>
-            ))}
+            <div className="w-full bg-[#0a0a0a] border border-gray-800 rounded-lg overflow-hidden backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
+              {["easy", "medium", "hard"].map((level) => (
+                <button
+                  key={level}
+                  onClick={() => changeDifficulty(level)}
+                  className={`w-full text-left px-4 py-2.5 font-mono text-xs uppercase tracking-widest transition-colors duration-200 ${
+                    difficulty === level
+                      ? "bg-purple-500/20 text-purple-400 border-l-2 border-purple-500"
+                      : "text-gray-500 hover:bg-white/5 hover:text-gray-300 border-l-2 border-transparent"
+                  }`}
+                >
+                  {level}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* Dashboard Scoreboard (Stacked vertically for side panel) */}
+        {/* Dashboard Scoreboard */}
         <div className="flex flex-col gap-3 font-mono text-xs md:text-sm text-white font-bold tracking-widest bg-black/40 p-4 rounded-lg border border-gray-800">
           <div className="flex justify-between items-center w-full">
             <span className="text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]">
