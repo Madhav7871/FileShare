@@ -2,10 +2,17 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
 
 const app = express();
 
-// Allow Express to accept requests from any origin (like Vercel)
+const uploadsDir = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 app.use(
   cors({
     origin: true,
@@ -13,10 +20,12 @@ app.use(
   }),
 );
 
+app.use("/uploads", express.static(uploadsDir));
+
 const server = http.createServer(app);
 
 // Dynamic port binding for Render
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000
 
 const io = new Server(server, {
   maxHttpBufferSize: 1e8, // 100 MB limit
@@ -25,6 +34,21 @@ const io = new Server(server, {
     methods: ["GET", "POST"],
     credentials: true,
   },
+});
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 50 * 1024 * 1024 },
 });
 
 const rooms = new Map(); // For File Sharing
@@ -267,6 +291,24 @@ io.on("connection", (socket) => {
         }
       });
     }
+  });
+});
+
+app.post("/api/external-upload", upload.single("file"), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: "No file uploaded" });
+  }
+
+  const protocol = req.protocol;
+  const host = req.get("host");
+  const fileUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+
+  res.json({
+    success: true,
+    url: fileUrl,
+    type: req.file.mimetype,
+    size: req.file.size,
+    originalName: req.file.originalname,
   });
 });
 
