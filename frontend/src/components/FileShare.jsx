@@ -11,6 +11,8 @@ import {
   Film,
   X,
 } from "lucide-react";
+import AdBanner from "./AdBanner";
+import NativeAd from "./NativeAd";
 
 export default function FileShare({ socket, isConnected }) {
   // File Share State
@@ -221,6 +223,12 @@ export default function FileShare({ socket, isConnected }) {
                   <a
                     href={previewData.url}
                     download={previewData.name}
+                    onClick={() =>
+                      window.open(
+                        "https://www.profitableratecpmnetwork.com/wrjjxygg?key=d31a4191a84807517b41b82f80bdcb29",
+                        "_blank",
+                      )
+                    }
                     className="inline-flex items-center justify-center gap-2 bg-primary py-2.5 px-6 md:py-3 md:px-8 rounded-xl font-bold text-sm md:text-base shadow-[0_0_20px_rgba(139,92,246,0.3)] hover:shadow-[0_0_30px_rgba(139,92,246,0.5)] hover:-translate-y-1 transition-all"
                   >
                     <CloudDownload size={18} className="md:w-5 md:h-5" />
@@ -229,6 +237,13 @@ export default function FileShare({ socket, isConnected }) {
                 </div>
               )}
             </div>
+
+            {/* Modal Banner Ad */}
+            <AdBanner
+              adKey="9750dad1d4b6c1f3f4cba6836846a272"
+              width={320}
+              height={50}
+            />
           </div>
         </div>
       )}
@@ -280,7 +295,7 @@ export default function FileShare({ socket, isConnected }) {
               </span>
             </div>
             <span className="text-textMuted text-xs md:text-sm font-medium">
-              Drag, Click or <span className="text-primary">Paste</span>your
+              Drag, Click or <span className="text-primary">Paste</span> your
               files here
             </span>
           </div>
@@ -436,7 +451,14 @@ export default function FileShare({ socket, isConnected }) {
                     <a
                       href={f.fileData}
                       download={f.fileName}
-                      onClick={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Triggers the Adsterra Smartlink and the download simultaneously
+                        window.open(
+                          "https://www.profitableratecpmnetwork.com/wrjjxygg?key=d31a4191a84807517b41b82f80bdcb29",
+                          "_blank",
+                        );
+                      }}
                       className="p-1.5 md:p-2 bg-secondary/10 hover:bg-secondary text-secondary hover:text-white rounded-lg transition-colors shrink-0"
                       title="Download File"
                     >
@@ -448,6 +470,11 @@ export default function FileShare({ socket, isConnected }) {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Global Native Ad Below File Panels */}
+      <div className="w-full mt-8">
+        <NativeAd />
       </div>
     </>
   );

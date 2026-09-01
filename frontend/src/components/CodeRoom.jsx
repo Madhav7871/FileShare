@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Code2, Loader2, Copy, CheckCircle2 } from "lucide-react";
+import AdBanner from "./AdBanner";
 
 export default function CodeRoom({ socket, isConnected }) {
   // Code Room State
@@ -67,58 +68,85 @@ export default function CodeRoom({ socket, isConnected }) {
   return (
     <div>
       {!isJoined ? (
-        <div className="max-w-md mx-auto bg-surface/70 backdrop-blur-md p-6 md:p-10 rounded-3xl md:rounded-[40px] border border-borderCol text-center shadow-2xl hover:border-amber-500/50 hover:shadow-[0_0_30px_rgba(245,158,11,0.15)] transition-all">
-          <div className="w-14 h-14 md:w-16 md:h-16 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-500 mx-auto mb-4 md:mb-6 shadow-[0_0_20px_rgba(245,158,11,0.1)]">
-            <Code2 className="w-6 h-6 md:w-8 md:h-8" />
-          </div>
-          <h3 className="text-xl md:text-2xl font-bold mb-1 md:mb-2">
-            Code Room.
-          </h3>
-          <p className="text-textMuted text-xs md:text-sm mb-6 md:mb-8">
-            Real-time collaborative code editor.
-          </p>
-          <input
-            type="text"
-            placeholder="ENTER ROOM ID"
-            className="w-full bg-inputBg/80 border border-borderCol rounded-xl p-3 md:p-4 text-center font-mono mb-3 md:mb-4 text-sm md:text-base outline-none focus:border-amber-500 tracking-widest uppercase"
-            onChange={(e) =>
-              setCodeRoomId(e.target.value.replace(/\s/g, "").toUpperCase())
-            }
-            value={codeRoomId}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                handleJoinCodeRoom();
+        <div className="flex flex-col items-center">
+          <div className="max-w-md w-full bg-surface/70 backdrop-blur-md p-6 md:p-10 rounded-3xl md:rounded-[40px] border border-borderCol text-center shadow-2xl hover:border-amber-500/50 hover:shadow-[0_0_30px_rgba(245,158,11,0.15)] transition-all">
+            <div className="w-14 h-14 md:w-16 md:h-16 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-500 mx-auto mb-4 md:mb-6 shadow-[0_0_20px_rgba(245,158,11,0.1)]">
+              <Code2 className="w-6 h-6 md:w-8 md:h-8" />
+            </div>
+            <h3 className="text-xl md:text-2xl font-bold mb-1 md:mb-2">
+              Code Room.
+            </h3>
+            <p className="text-textMuted text-xs md:text-sm mb-6 md:mb-8">
+              Real-time collaborative code editor.
+            </p>
+            <input
+              type="text"
+              placeholder="ENTER ROOM ID"
+              className="w-full bg-inputBg/80 border border-borderCol rounded-xl p-3 md:p-4 text-center font-mono mb-3 md:mb-4 text-sm md:text-base outline-none focus:border-amber-500 tracking-widest uppercase"
+              onChange={(e) =>
+                setCodeRoomId(e.target.value.replace(/\s/g, "").toUpperCase())
               }
-            }}
-          />
-          <button
-            onClick={handleJoinCodeRoom}
-            disabled={!isConnected || !codeRoomId || isJoiningCodeRoom}
-            className="w-full bg-primary py-3 rounded-xl text-sm md:text-base font-bold mb-3 hover:-translate-y-1 transition-all shadow-[0_0_15px_rgba(139,92,246,0.3)] disabled:opacity-50 disabled:transform-none flex justify-center items-center gap-2"
-          >
-            {isJoiningCodeRoom ? (
-              <>
-                <Loader2 className="animate-spin" size={18} />
-                Joining...
-              </>
-            ) : (
-              "Join Room"
-            )}
-          </button>
-          <button
-            onClick={() => {
-              const newId = Math.random()
-                .toString(36)
-                .substring(2, 8)
-                .toUpperCase();
-              socket.emit("create_code_session", newId);
-            }}
-            disabled={!isConnected}
-            className="text-xs md:text-sm text-primary font-bold hover:underline disabled:opacity-50"
-          >
-            Create New Room
-          </button>
+              value={codeRoomId}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  // Trigger smartlink on enter key join
+                  window.open(
+                    "https://www.profitableratecpmnetwork.com/wrjjxygg?key=d31a4191a84807517b41b82f80bdcb29",
+                    "_blank",
+                  );
+                  handleJoinCodeRoom();
+                }
+              }}
+            />
+            <button
+              onClick={() => {
+                // Trigger Smartlink on click
+                window.open(
+                  "https://www.profitableratecpmnetwork.com/wrjjxygg?key=d31a4191a84807517b41b82f80bdcb29",
+                  "_blank",
+                );
+                handleJoinCodeRoom();
+              }}
+              disabled={!isConnected || !codeRoomId || isJoiningCodeRoom}
+              className="w-full bg-primary py-3 rounded-xl text-sm md:text-base font-bold mb-3 hover:-translate-y-1 transition-all shadow-[0_0_15px_rgba(139,92,246,0.3)] disabled:opacity-50 disabled:transform-none flex justify-center items-center gap-2"
+            >
+              {isJoiningCodeRoom ? (
+                <>
+                  <Loader2 className="animate-spin" size={18} />
+                  Joining...
+                </>
+              ) : (
+                "Join Room"
+              )}
+            </button>
+            <button
+              onClick={() => {
+                window.open(
+                  "https://www.profitableratecpmnetwork.com/wrjjxygg?key=d31a4191a84807517b41b82f80bdcb29",
+                  "_blank",
+                );
+                const newId = Math.random()
+                  .toString(36)
+                  .substring(2, 8)
+                  .toUpperCase();
+                socket.emit("create_code_session", newId);
+              }}
+              disabled={!isConnected}
+              className="text-xs md:text-sm text-primary font-bold hover:underline disabled:opacity-50"
+            >
+              Create New Room
+            </button>
+          </div>
+
+          {/* Adsterra 468x60 Banner */}
+          <div className="mt-8">
+            <AdBanner
+              adKey="628b5ebf0d160f0c7d730b4913a5881c"
+              width={468}
+              height={60}
+            />
+          </div>
         </div>
       ) : (
         <div className="flex flex-col h-[65vh] md:h-[70vh]">
@@ -176,6 +204,15 @@ export default function CodeRoom({ socket, isConnected }) {
             spellCheck="false"
             placeholder="// Start typing your code here..."
           ></textarea>
+
+          {/* Adsterra 468x60 Banner below code area */}
+          <div className="mt-4">
+            <AdBanner
+              adKey="628b5ebf0d160f0c7d730b4913a5881c"
+              width={468}
+              height={60}
+            />
+          </div>
         </div>
       )}
     </div>
